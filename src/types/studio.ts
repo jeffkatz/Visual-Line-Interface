@@ -275,7 +275,7 @@ export interface HistoryRecord {
   status: 'completed' | 'failed' | 'cancelled';
   durationSec: number;
   commandCount: number;
-  mode: 'Dry-Run Plan' | 'Simulated Execution';
+  mode: 'Dry-Run Plan' | 'Simulated Execution' | 'Local Installation';
 }
 
 export type InspectorTarget =

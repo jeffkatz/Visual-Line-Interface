@@ -113,7 +113,7 @@ export const WorkflowBuilderScreen: React.FC<WorkflowBuilderScreenProps> = ({
             type="button"
             onClick={onSyncFromStudio}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[4px] bg-[#171A1E] border border-[#343B43] hover:border-[#65B9A5] text-[12.5px] font-medium text-[#F1F3F5] cursor-pointer"
-            title="Rebuild workflow blocks from current Project Studio execution plan"
+            title="Rebuild workflow blocks from the current project setup plan"
           >
             <RefreshCw className="w-3.5 h-3.5 text-[#65B9A5]" />
             <span>Sync from Studio</span>

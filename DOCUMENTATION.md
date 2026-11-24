@@ -10,8 +10,8 @@ Every visual control maps directly to deterministic CLI flags, manifests, and pr
 
 1. [Interface Anatomy](#1-interface-anatomy)
 2. [Step-by-Step Tutorial: End-to-End Walkthrough](#2-step-by-step-tutorial-end-to-end-walkthrough)
-3. [Stack Recommendations & Project Prompt Studio](#3-stack-recommendations--project-prompt-studio)
-4. [Pre-Execution Bulk File Rename & Directory Alignment](#4-pre-execution-bulk-file-rename--directory-alignment)
+3. [Archived Stack and Prompt Features](#3-archived-stack-and-prompt-features)
+4. [Archived Bulk File Rename Details](#4-archived-bulk-file-rename-details)
 5. [Workspaces Reference](#5-workspaces-reference)
 6. [Hardware Controls & Keyboard Shortcuts](#6-hardware-controls--keyboard-shortcuts)
 7. [Connecting Optional AI Providers](#7-connecting-optional-ai-providers)
@@ -21,92 +21,52 @@ Every visual control maps directly to deterministic CLI flags, manifests, and pr
 
 ## 1. Interface Anatomy
 
-Visual Line Interface uses a persistent three-column desktop workstation layout:
+Visual Line Interface uses a compact primary navigation for **Create project**, **Packages**, and **Install history**. Less frequently used tools are grouped under **More tools**.
 
 ```text
 ┌──────────────────┬─────────────────────────────────────────┬──────────────────────┐
 │  LEFT SIDEBAR    │            MAIN WORKSPACE               │  RIGHT INSPECTOR     │
 │                  │                                         │  (Collapsible)       │
-│ • Command & Docs │ • Active Screen (12 workspaces)         │ • Live Context Help  │
-│   (Cmd/Ctrl+K)   │ • Hardware Controls & Rotary Dials      │ • Compatibility      │
-│ • Workspace Nav  │ • Stack & Prompt Studio                 │   Notices & Auto-Fix │
-│ • Management Nav │ • Bulk Rename & Generated Execution     │ • Official Docs      │
-│ • System Nav     │   Plan (Commands / Config Files / JSON /│   Quick Links        │
-│ • Live Host Info │   File Tree / Create Prompt)            │                      │
+│ • Create project │ • Four-step local installation wizard  │ • Local host status  │
+│ • Packages       │ • Framework, destination, packages      │ • Advanced tools     │
+│ • Install history│   and real installation progress        │   under More tools  │
+│ • More tools     │                                         │                      │
 └──────────────────┴─────────────────────────────────────────┴──────────────────────┘
 ```
 
-- **Left Sidebar**: Navigate between **Workspace**, **Management**, and **System** views (`Overview`, `Project Studio`, `Package & Library Studio`, `Runtime Manager`, `Workflow Builder`, `Operations Centre`, `Integration Registry`, `Project Recipes`, `Installation History`, `Diagnostics`, `Docs & Tutorial`, `Settings`).
-- **Main Workspace**: Renders the selected tool bench with live configuration state.
-- **Right Contextual Inspector**: Updates automatically whenever you select a framework, runtime, package manager, rotary dial, package, workflow node, or bulk-rename file. Shows compatibility rules, 1-click **Auto-Fix** actions, and links to official vendor documentation.
+- **Left Sidebar**: Keeps the main setup, packages, and install history visible; opens secondary workspaces from **More tools**.
+- **Main Workspace**: The project setup flow is the default screen. Advanced previews and settings remain available separately.
+- **Local execution**: A local Node.js server launches allowlisted npm CLI operations. Browser JavaScript does not receive arbitrary shell access.
+
+> **Scope note:** Real installation currently uses npm and creates projects with official framework scaffolds. Optional packages are installed at their pinned versions; the legacy workflow runner and bulk-rename/configuration previews are not applied by the real installer.
 
 ---
 
 ## 2. Step-by-Step Tutorial: End-to-End Walkthrough
 
-Follow this 6-step tutorial to go from an empty idea to a validated CLI script, `package.json`, directory tree, and ready-to-paste **Project Creation Prompt**.
+Create and install a project locally in four steps:
 
-### Step 1 — Pick Your Foundation & Runtime (`Project Studio`)
-1. Open **Project Studio** from the left sidebar (or click **Open Project Studio** from **Overview**).
-2. In **Section 01 · Project Foundation**, choose one of the five supported foundations:
-   - **Vite** (supports React, Vue, Svelte, Solid, and Vanilla presets)
-   - **Next.js** (App Router + React Server Components)
-   - **Astro** (Content-driven islands architecture)
-   - **Vue** (`create-vue` official scaffold)
-   - **SvelteKit** (`sv create` scaffold)
-3. Below the **Stack Recommendations & Prompt Studio** card, configure:
-   - **Runtime Selector**: `Node.js`, `Deno`, or `Bun` + target version channel.
-   - **Package Manager**: `pnpm`, `npm`, `Yarn`, or `Bun`.
-4. Watch the **Right Inspector**—if you pair incompatible tools (for example, `Bun` package manager with `Node.js`, or `SWC` with a non-React framework), an advisory or error appears with a **1-click Auto-Fix** button.
+### Step 1 — Choose a framework
+Open **Create project**, select Vite, Next.js, Astro, Vue, or SvelteKit, choose a Vite template when applicable, and pick JavaScript or TypeScript.
 
-### Step 2 — Get a Stack Recommendation & Generate a Project Prompt
-You can configure controls manually or let the **Stack Recommendations & Prompt Studio** panel recommend a stack for you—**with or without an AI provider connected**:
-1. In the **Stack Advisor** tab:
-   - Click any of the **6 Curated Stack Profiles** (`High-Speed React SPA`, `Full-Stack Next.js SaaS`, `Content & Docs Portal`, `Vue 3 Enterprise Workspace`, `SvelteKit Edge Application`, or `UI Component & Design System`), **OR**
-   - Type your project goal (e.g. `"Realtime analytics portal with TypeScript, Tailwind, Biome, and Vitest"`) and click **Recommend Stack** (offline heuristic matching) or **Recommend with AI** (if a provider key is configured).
-2. Click **Apply to Project Studio** to populate framework, language, compiler, styling, testing, dev tools, packages, layout mode, naming convention, and dev port in one click—or click **Apply & Build Prompt** to jump straight to prompt synthesis.
-3. In the **Project Creation Prompt** tab:
-   - Optionally enter a brief description of your app's business logic.
-   - Review the automatically generated Markdown prompt containing your exact stack, package versions, directory tree, bulk rename rules, and CLI execution steps.
-   - If you have an AI provider connected (such as OpenRouter or Google Gemini), click **Enhance with Connected Provider** to enrich the prompt with tailored component and API architecture guidance.
-   - Click **Copy Prompt** or **Export .md** to download `<project>-create-prompt.md`.
+### Step 2 — Select the destination
+Enter a project folder name and click **Select a local folder**. The app opens the operating system's folder picker. It creates a new project subfolder inside the selected parent; it will not overwrite an existing destination.
 
-### Step 3 — Tune Compiler, Tooling & Rotary Dials (`Section 02`)
-1. Choose **Language** (`TypeScript` / `JavaScript`), **Build Configuration** (`SWC` / `Standard`), **Styling** (`Tailwind CSS`, `Sass`, `CSS Modules`, `Plain CSS`), and **Testing** (`Vitest`, `Playwright`, `None`).
-2. Toggle **Development Tools** (`ESLint`, `Prettier`, `Biome`) using the mechanical switches.
-3. Calibrate numeric runtime settings with the four precision **Rotary Knobs**:
-   - **Dev Server Port** (`3000–9000`)
-   - **Preview Port** (`3000–9000`)
-   - **Node Heap Limit** (`1024–8192 MB`)
-   - **Fetch Timeout** (`15–180 s`)
-   - *Tip*: Drag vertically, scroll your mouse wheel over a dial, or click the monospaced readout to type an exact number.
+### Step 3 — Review packages
+The real installer currently uses **npm**. Select optional packages and review their pinned versions. Node.js with npm must be available to the local server.
 
-### Step 4 — Set Identity & Bulk-Rename Scaffold Files (`Section 03`)
-1. Enter a valid npm package slug in **Project Name** (e.g. `my-awesome-app`) and choose or type an **Installation Directory**.
-2. Toggle **Install Dependencies** and **Initialise Git Repository**.
-3. Use **Pre-Execution Bulk Rename & Directory Alignment** to ensure the scaffolded file paths match your team's architecture before any command executes (see [Section 4](#4-pre-execution-bulk-file-rename--directory-alignment)).
+### Step 4 — Review and install
+Check the framework, packages, and full destination path, then click **Install project**. The local server runs the framework scaffold and npm install steps, streams bounded process output into the progress panel, and records the result in **Install history**.
 
-### Step 5 — Inspect & Export (`Section 04 · Generated Execution Plan`)
-Switch between the five live output tabs:
-- **Commands**: View numbered phase-by-phase operations (`Scaffold`, `Configure`, `Dependencies`, `Tooling`, `Repository`, `Verify`) with per-step copy buttons and an **Env & Flags** drawer.
-- **Config Files**: Inspect real synthesized configurations for your active framework (`vite.config.*`, `next.config.*`, `astro.config.mjs`, `svelte.config.js`), `tsconfig.json`/`jsconfig.json`, root CSS (using your bulk-renamed stylesheet target), `biome.json`/`eslint.config.js`/`.prettierrc`, and `vitest.config.*`/`playwright.config.*`.
-- **package.json**: Inspect the live generated manifest with pinned versions and npm scripts.
-- **File Tree**: View the final directory tree highlighting every renamed/moved file.
-- **Create Prompt**: Copy the synchronized Project Creation Prompt directly from the execution bar.
+The app must be running on the same computer where the project should be created. A remote browser cannot select a local absolute path or start a local CLI. The local server binds to loopback and accepts same-origin local install actions only.
 
-Click **Export .sh** (or **Export .ps1** when PowerShell is selected in Settings) to download an executable bootstrap script, or click **Save as Recipe** to store the entire configuration locally.
-
-### Step 6 — Execute & Monitor (`Workflow Builder` & `Operations Centre`)
-1. Click **Initialise Project** in Project Studio (or **Sync from Studio → Execute Workflow** in **Workflow Builder**).
-2. Watch the **Operations Centre** step-by-step execution timeline, live **Execution Timing Chart** (estimated vs. actual duration), and terminal log stream.
-3. Toggle **Simulate Fault** to test failure recovery (`Retry Failed`) and optional **Diagnose Failure with AI** troubleshooting.
-4. Completed runs are automatically recorded in **Installation History** and charted on **Overview**.
+**Important:** Workflow Builder and Dry-run simulator remain previews and do not execute custom commands. Bulk rename and generated-config previews are not yet applied by the real installer.
 
 ---
 
-## 3. Stack Recommendations & Project Prompt Studio
+## 3. Archived Stack and Prompt Features
 
-Visual Line Interface separates deterministic engineering logic from optional LLM calls so you are **never blocked** when working offline or without API keys:
+The previous Stack Advisor and Prompt Studio are not part of the current primary setup flow. The notes below are retained for reference and do not describe an active installer step:
 
 | Capability | Without Connected AI Provider (Offline) | With Connected AI Provider |
 | :--- | :--- | :--- |
@@ -118,9 +78,9 @@ Visual Line Interface separates deterministic engineering logic from optional LL
 
 ---
 
-## 4. Pre-Execution Bulk File Rename & Directory Alignment
+## 4. Archived Bulk File Rename Details
 
-Located in **Project Studio → Section 03**, the Bulk Rename Workbench lets you normalize generated scaffold paths before running a single CLI command:
+The legacy Bulk Rename Workbench is not available in the current setup flow. The following notes describe its previous behavior for historical reference only; none of these changes are applied during installation.
 
 1. **Target Directory Structure**:
    - **Standard `src/`**: Keeps standard framework folders (`src/components/...`).
@@ -134,7 +94,9 @@ Located in **Project Studio → Section 03**, the Bulk Rename Workbench lets you
    - Click **Suggest Layout & Renames** (when AI is enabled) for automated layout advice.
 4. **Collision & Convention Validation**:
    - Duplicate target paths are flagged as `Collision`; non-conforming filenames are flagged as `Mismatch`.
-   - All pending moves automatically generate `mkdir -p` + `mv` (or PowerShell `New-Item`) steps inside **Generated Execution Plan**.
+   - Pending moves appear in the generated command preview.
+
+These rename operations are not applied by the real local installer yet; the official framework scaffold creates its default file tree.
 
 ---
 
@@ -143,14 +105,14 @@ Located in **Project Studio → Section 03**, the Bulk Rename Workbench lets you
 | Workspace | Purpose |
 | :--- | :--- |
 | **Overview** | Active draft summary, runtime readiness meters, Recharts **Pipeline Phase Breakdown** & **Recorded Build Duration Trend**, quick-load recipes, and recent runs. |
-| **Project Studio** | Core configuration workstation: Foundations, Stack & Prompt Studio, Runtimes, Package Managers, Tooling, Rotary Knobs, Bulk File Rename, Execution Preview, and Initialise bar. |
+| **Create project** | Four-step wizard for choosing a framework, selecting a local destination, reviewing packages, and running the local npm install. |
 | **Package & Library Studio** | Searchable curated catalog + live `registry.npmjs.org` search, version pinning, peer dependency & license inspection, and official Docs & npm links. |
 | **Runtime Manager** | Probes live host OS, CPU arch, `PATH` binaries (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`), and compares Cold vs. Warm cache latency via Recharts. |
-| **Workflow Builder** | Visual dependency-ordered pipeline editor. Reorder nodes, toggle steps, add library templates, **Sync from Studio**, persist locally, and execute. |
-| **Operations Centre** | Live dry-run runner with pause/resume/cancel, fault simulation, Recharts step timing comparison, terminal log stream, and optional AI troubleshooter. |
+| **Workflow Builder** | Visual dependency-ordered pipeline plan editor. Its run action is simulated and does not execute commands. |
+| **Dry-run simulator** | Displays simulated progress and plan output; separate from actual project installation. |
 | **Integration Registry** | Toggle deeply integrated tooling (`Tailwind CSS`, `TypeScript`, `ESLint`, `Prettier`, `Biome`, `Vitest`, `Playwright`, `React Router`, `shadcn/ui`). |
 | **Project Recipes** | Save, inspect, reload, and delete reusable project configurations in `localStorage`. |
-| **Installation History** | Audit log of past dry-run and simulated executions with duration and command counts. |
+| **Installation History** | Local record of real project installs and legacy simulated runs. |
 | **Diagnostics** | Runs `/api/system/probe` for live Node.js, package manager, Git CLI, and TCP port binding (`devPort` / `previewPort`) preflight verification. |
 | **Docs & Tutorial** | Built-in interactive walkthrough checklist, control reference, and live codebase architecture viewer. |
 | **Settings** | Workstation defaults (`defaultDirectory`, `shellTarget`, `knobSensitivity`, `confirmBeforeExecution`) and **AI Provider & Model Routing**. |
@@ -161,7 +123,7 @@ Located in **Project Studio → Section 03**, the Bulk Rename Workbench lets you
 
 - **`⌘K` / `Ctrl+K`**: Open the **Command & Docs Palette** from anywhere to jump screens, switch frameworks, copy generated CLI scripts, or open official documentation.
 - **Rotary Knobs**: Click-and-drag vertically, scroll mouse wheel, press `ArrowUp`/`ArrowDown`/`PageUp`/`PageDown`, or click the numeric value to enter an exact number. Knob sensitivity (`precision`, `standard`, `fast`) is configurable in **Settings**.
-- **Collapsible Right Inspector**: Collapse or expand via the right-rail button; automatically collapses on viewports narrower than `1280px`.
+- **Collapsible Right Inspector**: Starts collapsed to reduce setup clutter; expand it via the right-rail button when needed.
 
 ---
 
@@ -189,7 +151,7 @@ All AI credentials are configured **strictly on the server** via environment var
 ## 8. Troubleshooting & FAQ
 
 - **Can I use Visual Line Interface without any API keys?**
-  Yes. Every core workflow—scaffolding, package curation, bulk file renaming, workflow building, offline stack recommendations, deterministic Project Creation Prompt generation, and `.sh`/`.ps1` export—works without AI keys.
+  Yes. Project scaffolding and npm package installation do not require AI credentials.
 - **Why does OpenRouter or another provider show `Env Unset`?**
   The server did not detect a non-placeholder value for that provider's environment variable. Add the variable to your server environment / Secrets panel and click **Refresh Status** in Settings.
 - **What happens if a connected provider is temporarily unavailable (e.g. HTTP 503 or timeout)?**

@@ -2,7 +2,7 @@
 
 # VISUAL LINE INTERFACE
 
-**Precision visual software installation, project scaffolding, and development environment configuration workstation.**
+**A local-first, step-by-step project setup tool with real framework scaffolding and npm installs.**
 
 [![React](https://img.shields.io/badge/React-19-1D2126?style=for-the-badge&logo=react&logoColor=65B9A5)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-1D2126?style=for-the-badge&logo=typescript&logoColor=77A9DC)](https://www.typescriptlang.org/)
@@ -15,15 +15,16 @@
 
 ## Overview & Purpose
 
-**Visual Line Interface** transforms traditionally command-line-driven developer operations into a cohesive, precision-engineered visual workstation.
+**Visual Line Interface** guides developers through choosing a framework, selecting a local destination, reviewing packages, and creating a real project on their computer.
 
 Instead of memorising framework CLI flags, hunting down compatibility notes across package managers, manually renaming scaffolded files to fit directory conventions, or piecing together multi-step setup scripts by hand, developers can configure every aspect of a new project visually—inspecting exact generated commands, synthesized framework config files, `package.json` manifests, and file trees before execution.
 
 ### Core Product Philosophy
 
-- **Visual first, terminal accessible** — Every visual switch, segmented selector, and rotary dial maps directly to real CLI flags and environment configuration.
-- **Configuration before execution** — Validate stack compatibility, naming conventions, and port assignments before a single command runs.
-- **Beginner friendly, expert capable** — Clear documentation links and contextual inspection alongside low-level heap, timeout, compiler, and shell controls.
+- **Local execution** — The local server runs official scaffold commands and npm installs; the browser never executes shell text.
+- **Guided setup** — Four steps take users from framework selection through destination and package review to installation.
+- **Safe by default** — The server listens on loopback, accepts same-origin local actions, validates package specs, and refuses to overwrite an existing project folder.
+- **Honest scope** — The actual installer currently uses npm. Workflow Builder and Operations remain dry-run tools and do not execute custom commands.
 - **Precision over clutter** — Inspired by analogue synthesizers, audio mixing consoles, and industrial instrumentation without retro skeuomorphism.
 
 ---
@@ -32,13 +33,10 @@ Instead of memorising framework CLI flags, hunting down compatibility notes acro
 
 | Workspace | Purpose | Key Capabilities |
 | :--- | :--- | :--- |
-| **Project Studio** | Primary project scaffolding bench | Framework selection (`Vite`, `Next.js`, `Astro`, `Vue`, `SvelteKit`), runtime & package manager pairing, language/compiler/styling/testing selectors, analogue rotary dials (`devPort`, `previewPort`, `memoryLimitMb`, `networkTimeoutSec`), and preflight validation. |
-| **Stack & Prompt Studio** | Stack recommendations & prompt generation | 6 curated stack profiles + offline goal matching (`recommendStackOffline`), optional AI Stack Architect, and a **Project Creation Prompt** generator (works offline or enhanced via connected AI) with `.md` export. |
-| **Bulk File Rename** | Pre-execution file structure alignment | Directory layout modes (`standard`, `feature-sliced`, `domain-scoped`), naming conventions (`kebab-case`, `camelCase`, `PascalCase`, `snake_case`), prefix/suffix & find/replace rules, inline overrides, and collision checks. |
-| **Execution Preview** | Transparent pre-run inspection | Toggle between **Commands** (`Sequence` or raw script with per-step copy), synthesized **Config Files** (`vite.config.*`, `next.config.*`, `tsconfig.json`, `biome.json`, `eslint.config.js`, `vitest.config.*`, CSS), **`package.json`**, post-rename **`File Tree`**, and **`Create Prompt`**; export as `.sh` or `.ps1`. |
+| **Create Project** | Primary guided installer | Choose a framework and language, select a local folder with the operating-system picker, review optional packages, then run the scaffold and npm install locally. |
 | **Package & Library Studio** | Dependency & live npm registry | Filter curated libraries (`Full Integration Setup` vs `Package Only`), search live `registry.npmjs.org` for any package, pin versions reflected in CLI commands, and jump to official Docs & npm. |
 | **Runtime Manager & Diagnostics** | Live host probe & toolchain telemetry | Probe real host OS, CPU arch, `PATH` binaries (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`, `git`), and TCP port availability via `/api/system/probe`, plus compare PM cache latency with Recharts. |
-| **Workflow Builder & Operations** | Dependency-ordered automation & live monitor | Compose/reorder operation blocks, **Sync from Studio**, monitor live dry-run execution with Recharts timing charts, fault injection, and optional AI failure diagnostics. |
+| **Workflow Builder & Operations** | Advanced previews | Compose operation blocks and inspect dry-run output. These screens do not execute the displayed commands. |
 | **Docs & Tutorial** | In-app interactive guide | 6-chapter interactive walkthrough, hardware control reference, prompt guide, and live codebase map. |
 | **Settings & Providers** | Workstation defaults & optional AI routing | Configure shell syntax, knob sensitivity, and optional AI providers (**OpenRouter**, **Google Gemini**, **OpenAI**, **Anthropic**, **Groq**, **Mistral**, **Ollama**). |
 | **Command Palette (`⌘K` / `Ctrl+K`)** | Keyboard-first navigation & docs | Instant search across workspaces, quick foundation switching, script copying, and official documentation for every language, framework, and tool. |
@@ -66,7 +64,7 @@ Visual Line Interface pairs layered charcoal and graphite surfaces with restrain
 ### Prerequisites
 
 - **Node.js** `20+` (or `22.x LTS`)
-- **npm** or **pnpm**
+- **npm** (required for the current local installer)
 
 ### Local Development
 
@@ -87,7 +85,13 @@ npm run lint
 npm run build
 ```
 
-- **User Manual & Tutorial**: [`DOCUMENTATION.md`](./DOCUMENTATION.md) — Step-by-step walkthrough, stack recommendation guide, prompt synthesis, and AI provider setup.
+- Open **http://localhost:3000**. Use **Create project** for the real local install flow.
+- Folder selection opens a native picker on the machine running the server. Select a parent folder; the app creates a new child folder named after the project.
+- Actual installs currently use npm. Node.js with npm is required. Existing project folders are never overwritten.
+- This feature requires the app to run locally on the same computer where the project should be created. A remotely hosted browser app cannot access your computer's folders or CLI.
+- The legacy **Workflow Builder** and **Dry-run simulator** are previews only; they do not execute arbitrary commands.
+
+- **User Manual & Tutorial**: [`DOCUMENTATION.md`](./DOCUMENTATION.md) — Step-by-step local setup, package selection, and advanced workspace notes.
 - **Codebase Blueprint (Agents & Engineers)**: [`project_structure.md`](./project_structure.md) — Full module map, state/data flow, `/api/system/probe`, `/api/npm/*`, `/api/ai/*` endpoints, and extension recipes.
 - **Audit & Roadmap**: [`PROJECT_AUDIT_AND_ROADMAP.md`](./PROJECT_AUDIT_AND_ROADMAP.md) — Implementation audit and completed engineering upgrades.
 
@@ -96,11 +100,13 @@ npm run build
 ## Project Architecture
 
 ```text
-server.ts                           # Express + Vite server (port 3000): /api/system/probe, /api/npm/*, /api/ai/*
+server.ts                           # Loopback Express + Vite server and local installer API routes
+server/localInstaller.ts            # Native folder picker, validated npm scaffolding/install jobs
 tests/
-└── studio.test.ts                  # Node test suite verifying validators, renames, config synthesis & prompts
+├── studio.test.ts                  # Project config, scaffold preview, and prompt tests
+└── localInstaller.test.ts          # Installer input, destination safety, and command argument tests
 src/
-├── App.tsx                         # Root state, host probe sync, localStorage persistence & Cmd+K palette
+├── App.tsx                         # Root state, host probe sync, localStorage persistence & screen routing
 ├── index.css                       # Tailwind CSS v4 setup, theme tokens, hardware surface utilities
 ├── types/
 │   └── studio.ts                   # Core TypeScript domain models for configs, probes, npm, AI & pipelines
@@ -110,14 +116,15 @@ src/
 │   └── aiProviders.ts              # OpenRouter, Gemini, OpenAI, Anthropic, Groq, Mistral & Ollama metadata
 ├── services/
 │   ├── aiClient.ts                 # Typed frontend API client for /api/ai/*
+│   ├── localInstallerClient.ts     # Typed client for local folder selection and install jobs
 │   └── systemClient.ts             # Typed frontend API client for /api/system/probe & /api/npm/*
 └── components/
     ├── charts/                     # Recharts workstation visualizations (StudioCharts.tsx)
     ├── controls/                   # RotaryKnob, MechanicalToggle, SegmentedSelector, VersionSelector, Meters
     ├── icons/                      # Custom geometric brand & ecosystem marks
     ├── layout/                     # Persistent Sidebar & collapsible Contextual InspectorPanel
-    ├── studio/                     # AiArchitectPanel (Stack & Prompt Studio), BulkFileRenamePanel, CommandPalette
-    └── screens/                    # ProjectStudio, PackageStudio, RuntimeManager, WorkflowBuilder,
+    ├── studio/                     # CommandPalette
+    └── screens/                    # ProjectSetupWizard, PackageStudio, RuntimeManager, WorkflowBuilder,
                                     # OperationsCentre, Overview, DocumentationScreen, & Management/Settings
 ```
 

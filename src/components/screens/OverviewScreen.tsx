@@ -57,7 +57,7 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({
           className="inline-flex items-center gap-2 px-4 py-2 rounded-[4px] bg-[#C7A46A] hover:bg-[#D2B27C] text-[#101214] text-[12.5px] font-semibold uppercase tracking-wide cursor-pointer transition-colors"
         >
           <FolderKanban className="w-4 h-4" />
-          <span>Open Project Studio</span>
+          <span>Create a project</span>
         </button>
       </header>
 
@@ -251,7 +251,7 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({
                     className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#252A30] border border-[#343B43] hover:border-[#C7A46A] text-[12px] font-medium text-[#F1F3F5] cursor-pointer transition-colors"
                   >
                     <Play className="w-3 h-3 text-[#C7A46A]" />
-                    <span>Load into Project Studio</span>
+                    <span>Load recipe into setup</span>
                   </button>
                 </div>
               ))}

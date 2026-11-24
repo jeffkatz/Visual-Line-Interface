@@ -33,6 +33,13 @@ import type {
   TestingId,
   ViteUiFramework,
 } from './src/types/studio.ts';
+import {
+  chooseLocalDirectory,
+  getInstallJob,
+  InstallerBusyError,
+  resolveNpmCliPath,
+  startProjectInstall,
+} from './server/localInstaller.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -70,6 +77,37 @@ const VALID_PMS = new Set<PackageManagerId>(['pnpm', 'npm', 'yarn', 'bun']);
 const VALID_RUNTIMES = new Set<RuntimeId>(['node', 'deno', 'bun']);
 const VALID_LAYOUTS = new Set<DirectoryLayoutMode>(['standard', 'feature-sliced', 'domain-scoped']);
 const VALID_CONVENTIONS = new Set<FileNamingConvention>(['kebab-case', 'camelCase', 'PascalCase', 'snake_case']);
+
+function requireLocalBrowserRequest(req: Request, res: Response, next: (err?: unknown) => void): void {
+  const remoteAddress = req.socket.remoteAddress?.replace(/^::ffff:/, '');
+  const host = (req.headers.host || '').toLowerCase();
+  const origin = req.get('origin');
+  const fetchSite = req.get('sec-fetch-site');
+  const isLoopback = remoteAddress === '127.0.0.1' || remoteAddress === '::1';
+  const isLocalHost = /^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(host);
+
+  if (!isLoopback || !isLocalHost || fetchSite === 'cross-site') {
+    res.status(403).json({ error: 'Local project actions are only available from this computer.' });
+    return;
+  }
+
+  if (origin) {
+    try {
+      if (new URL(origin).host.toLowerCase() !== host) {
+        res.status(403).json({ error: 'Cross-origin project actions are not allowed.' });
+        return;
+      }
+    } catch {
+      res.status(403).json({ error: 'Invalid request origin.' });
+      return;
+    }
+  } else if (req.method !== 'GET') {
+    res.status(403).json({ error: 'A same-origin browser request is required for local actions.' });
+    return;
+  }
+
+  next();
+}
 
 function getOllamaBaseUrl(): string | null {
   const raw = (process.env.OLLAMA_BASE_URL || '').trim();
@@ -573,6 +611,15 @@ function formatOsLabel(platform: string, release: string): string {
 }
 
 async function resolveBinaryPath(bin: string): Promise<string | null> {
+  if (bin === 'node') return process.execPath;
+  if (process.platform === 'win32' && bin === 'npm') {
+    try {
+      return resolveNpmCliPath();
+    } catch {
+      return null;
+    }
+  }
+
   const lookupCmd = process.platform === 'win32' ? 'where' : 'which';
   try {
     const { stdout } = await execFileAsync(lookupCmd, [bin], { timeout: 2500 });
@@ -584,8 +631,35 @@ async function resolveBinaryPath(bin: string): Promise<string | null> {
 }
 
 async function probeCliVersion(bin: string, args: string[]): Promise<string | null> {
+  if (bin === 'node') return process.versions.node;
+  if (process.platform === 'win32' && bin === 'npm') {
+    try {
+      const npmPackagePath = path.resolve(path.dirname(resolveNpmCliPath()), '..', 'package.json');
+      const npmPackage: unknown = JSON.parse(await fs.promises.readFile(npmPackagePath, 'utf8'));
+      if (
+        typeof npmPackage === 'object' &&
+        npmPackage !== null &&
+        'version' in npmPackage &&
+        typeof npmPackage.version === 'string'
+      ) {
+        return npmPackage.version;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   try {
-    const { stdout, stderr } = await execFileAsync(bin, args, { timeout: 2500 });
+    const executable =
+      process.platform === 'win32' && bin === 'npm'
+        ? process.execPath
+        : bin;
+    const executableArgs =
+      process.platform === 'win32' && bin === 'npm'
+        ? [resolveNpmCliPath(), ...args]
+        : args;
+    const { stdout, stderr } = await execFileAsync(executable, executableArgs, { timeout: 2500 });
     const combined = `${stdout}\n${stderr}`.trim();
     const match = combined.match(/\d+\.\d+\.\d+/);
     return match ? match[0] : combined.split(/\r?\n/)[0]?.slice(0, 32) || null;
@@ -649,6 +723,39 @@ async function startServer() {
 
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({ ok: true, timestamp: new Date().toISOString() });
+  });
+
+  app.use(['/api/local', '/api/projects'], requireLocalBrowserRequest);
+
+  app.post('/api/local/choose-directory', async (_req: Request, res: Response) => {
+    try {
+      const directory = await chooseLocalDirectory();
+      res.json(directory ? { directory } : { cancelled: true });
+    } catch (error) {
+      res.status(503).json({
+        error: error instanceof Error ? error.message : 'Unable to open the local folder picker.',
+      });
+    }
+  });
+
+  app.post('/api/projects/install', async (req: Request, res: Response) => {
+    try {
+      const job = await startProjectInstall(req.body);
+      res.status(202).json({ job });
+    } catch (error) {
+      res.status(error instanceof InstallerBusyError ? 409 : 400).json({
+        error: error instanceof Error ? error.message : 'Unable to start project installation.',
+      });
+    }
+  });
+
+  app.get('/api/projects/install/:id', (req: Request, res: Response) => {
+    const job = getInstallJob(req.params.id);
+    if (!job) {
+      res.status(404).json({ error: 'Installation job was not found or has expired.' });
+      return;
+    }
+    res.json({ job });
   });
 
   app.get('/api/system/probe', async (req: Request, res: Response) => {
@@ -1200,8 +1307,8 @@ Only include originalPath values from the input files list. Target paths must be
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Visual Line Interface server listening on http://0.0.0.0:${PORT}`);
+  app.listen(PORT, '127.0.0.1', () => {
+    console.log(`Visual Line Interface server listening on http://localhost:${PORT}`);
   });
 }
 

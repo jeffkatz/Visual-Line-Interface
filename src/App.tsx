@@ -1,7 +1,6 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AiProviderStatus,
-  AiStackRecommendation,
   ExecutionCommandStep,
   ExecutionStepState,
   HistoryRecord,
@@ -37,7 +36,8 @@ import { fetchSystemProbe } from './services/systemClient';
 import { Sidebar } from './components/layout/Sidebar';
 import { InspectorPanel } from './components/layout/InspectorPanel';
 import { CommandPalette } from './components/studio/CommandPalette';
-import { ProjectStudioScreen } from './components/screens/ProjectStudioScreen';
+import { ProjectSetupWizard } from './components/screens/ProjectSetupWizard';
+import type { ProjectInstallJob } from './types/localInstaller';
 
 const OverviewScreen = lazy(() =>
   import('./components/screens/OverviewScreen').then((m) => ({ default: m.OverviewScreen }))
@@ -107,9 +107,7 @@ function nowTimestamp(): string {
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ScreenId>('project-studio');
-  const [inspectorCollapsed, setInspectorCollapsed] = useState<boolean>(() =>
-    typeof window !== 'undefined' ? window.innerWidth < 1340 : false
-  );
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(true);
   const [inspectorTarget, setInspectorTarget] = useState<InspectorTarget>({
     type: 'framework',
     id: 'vite',
@@ -392,7 +390,7 @@ export default function App() {
   const handleUpdateConfig = useCallback((patch: Partial<ProjectConfig>) => {
     setConfig((prev) => {
       const next = { ...prev, ...patch };
-      // Keep selectedPackageIds synced with Project Studio selectors
+      // Keep selectedPackageIds synced with project setup selectors
       const pkgSet = new Set(next.selectedPackageIds);
       if (next.styling === 'tailwind') pkgSet.add('tailwindcss');
       else pkgSet.delete('tailwindcss');
@@ -457,34 +455,6 @@ export default function App() {
     [config.devPort, config.selectedPackageIds, handleUpdateConfig]
   );
 
-  const handleApplyAiRecommendation = useCallback(
-    (rec: AiStackRecommendation) => {
-      const sc = rec.suggestedConfig;
-      const rt = runtimes.find((r) => r.id === sc.runtime);
-      handleUpdateConfig({
-        framework: sc.framework,
-        viteUiFramework: sc.viteUiFramework ?? 'react',
-        language: sc.language,
-        compiler: sc.compiler,
-        styling: sc.styling,
-        testing: sc.testing,
-        devTools: sc.devTools,
-        packageManager: sc.packageManager,
-        runtime: sc.runtime,
-        runtimeVersion: rt?.selectedVersion ?? config.runtimeVersion,
-        projectName: sc.projectName,
-        selectedPackageIds: sc.selectedPackageIds,
-        directoryLayoutMode: sc.directoryLayoutMode,
-        directoryNamingConvention: sc.directoryNamingConvention,
-        autoAlignFileNaming: true,
-        fileRenameOverrides: {},
-        devPort: sc.devPort,
-      });
-      setInspectorTarget({ type: 'framework', id: sc.framework });
-    },
-    [config.runtimeVersion, handleUpdateConfig, runtimes]
-  );
-
   const handleUpdateRuntimeVersion = (id: RuntimeId, version: string) => {
     setRuntimes((prev) =>
       prev.map((rt) => (rt.id === id ? { ...rt, selectedVersion: version } : rt))
@@ -504,18 +474,6 @@ export default function App() {
           : rt
       )
     );
-  };
-
-  const handleSaveRecipe = (name: string, description: string) => {
-    const newRecipe: SavedRecipe = {
-      id: `rec-${Date.now()}`,
-      name,
-      description,
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      config: { ...config },
-      stepCount: executionPlan.length,
-    };
-    setRecipes((prev) => [newRecipe, ...prev]);
   };
 
   const handleLoadRecipe = (recipe: SavedRecipe) => {
@@ -675,7 +633,7 @@ export default function App() {
               id: `hist-${Date.now()}`,
               projectName: config.projectName || 'my-awesome-app',
               framework: config.framework,
-              packageManager: config.packageManager,
+              packageManager: 'npm',
               directory: `${config.directory}/${config.projectName || 'my-awesome-app'}`,
               timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
               status: 'completed',
@@ -753,27 +711,30 @@ export default function App() {
         );
       case 'project-studio':
         return (
-          <ProjectStudioScreen
+          <ProjectSetupWizard
             config={config}
-            onUpdateConfig={handleUpdateConfig}
-            runtimes={runtimes}
-            onUpdateRuntimeVersion={handleUpdateRuntimeVersion}
             packageManagers={packageManagers}
             packages={packages}
-            settings={settings}
-            executionPlan={executionPlan}
-            issues={compatibilityIssues}
-            providerStatuses={providerStatuses}
-            onInspect={(target) => {
-              setInspectorTarget(target);
+            onUpdateConfig={handleUpdateConfig}
+            onInstallationComplete={(job: ProjectInstallJob) => {
+              const started = Date.parse(job.startedAt);
+              const completed = Date.parse(job.completedAt ?? new Date().toISOString());
+              setHistory((previous) => [
+                {
+                  id: `hist-${job.id}`,
+                  projectName: config.projectName,
+                  framework: config.framework,
+                  packageManager: config.packageManager,
+                  directory: job.projectPath,
+                  timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                  status: job.status === 'completed' ? 'completed' : 'failed',
+                  durationSec: Number(Math.max(0, (completed - started) / 1000).toFixed(1)),
+                  commandCount: job.steps.length,
+                  mode: 'Local Installation',
+                },
+                ...previous,
+              ]);
             }}
-            onSaveRecipe={handleSaveRecipe}
-            onInitialiseProject={() =>
-              startPipelineExecution(executionPlan, config.projectName || 'my-awesome-app')
-            }
-            onOpenPackagesScreen={() => setActiveScreen('packages')}
-            onOpenAiSettings={() => setActiveScreen('settings')}
-            onApplyAiRecommendation={handleApplyAiRecommendation}
           />
         );
       case 'packages':

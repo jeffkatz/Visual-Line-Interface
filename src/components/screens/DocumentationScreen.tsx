@@ -34,70 +34,70 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'tut-1',
     stepNumber: '01',
-    title: 'Select a Project Foundation & Runtime',
-    workspace: 'Project Studio',
+    title: 'Choose a project framework',
+    workspace: 'Create project · Step 1',
     screenId: 'project-studio',
     duration: '2 min',
     summary:
-      'Choose a core framework scaffold (Vite, Next.js, Astro, Vue, or SvelteKit) and pair it with Node.js, Deno, or Bun plus your preferred package manager.',
+      'Choose an official framework scaffold and a JavaScript or TypeScript template.',
     instructions: [
-      'Open Project Studio and pick one of the five foundations in Section 01.',
-      'In the Runtime Selector & Package Manager panels, switch between Node.js, Deno, or Bun and choose pnpm, npm, Yarn, or Bun.',
-      'Click any card or toggle to update the Right Contextual Inspector with compatibility rules and official documentation links.',
+      'Open Create project and choose Vite, Next.js, Astro, Vue, or SvelteKit.',
+      'For Vite, select React, Vue, Svelte, Solid, or Vanilla; choose JavaScript or TypeScript.',
+      'Continue to project location when the framework and language are set.',
     ],
     proTip:
-      'If you pick Bun as package manager with Node.js or Deno mismatches, the Right Inspector surfaces an instant 1-click Auto-Fix button.',
+      'The real installer uses npm; the other package-manager controls belong to advanced preview tools.',
   },
   {
     id: 'tut-2',
     stepNumber: '02',
-    title: 'Use Stack Recommendations & Generate a Project Prompt',
-    workspace: 'Stack & Prompt Studio',
+    title: 'Select a local project destination',
+    workspace: 'Create project · Step 2',
     screenId: 'project-studio',
     duration: '2 min',
     summary:
-      'Use curated stack profiles or describe your project goal to receive a tailored recommendation—then generate a complete Project Creation Prompt with or without an AI provider.',
+      'Choose a project name and the parent folder where the new project should be created.',
     instructions: [
-      'In the Stack Recommendations & Prompt Studio panel inside Project Studio, click a curated profile (e.g. High-Speed React SPA or Full-Stack Next.js SaaS) or type your goal.',
-      'Click Recommend Stack (runs locally offline) or Recommend with AI (when a provider key like OPENROUTER_API_KEY or GEMINI_API_KEY is configured), then click Apply to Project Studio.',
-      'Switch to the Project Creation Prompt tab (or the Create Prompt tab in Generated Execution Plan) to copy or export a Markdown blueprint prompt ready for any coding agent.',
+      'Enter a valid project folder name.',
+      'Click Select a local folder to open the operating system folder picker.',
+      'Review the complete target path; the installer refuses to overwrite an existing folder.',
     ],
     proTip:
-      'The deterministic local blueprint generator always stays synchronized with your rotary ports, selected package versions, and bulk file rename mappings.',
+      'The browser cannot expose local absolute paths, so the folder picker is opened by the local server.',
   },
   {
     id: 'tut-3',
     stepNumber: '03',
-    title: 'Calibrate Tooling, Rotary Dials & Pre-Execution Bulk Rename',
-    workspace: 'Project Studio · Sections 02–03',
+    title: 'Add optional packages',
+    workspace: 'Create project · Step 3',
     screenId: 'project-studio',
     duration: '3 min',
     summary:
-      'Fine-tune TypeScript, SWC/esbuild, styling, testing, server ports, memory limits, and bulk-rename scaffolded files to match your target directory layout.',
+      'Review the packages you want installed alongside the framework scaffold.',
     instructions: [
-      'Configure Language, Build Configuration, Styling, Testing, and Development Tools (ESLint, Prettier, or Biome).',
-      'Drag the four precision rotary dials (or scroll / click the numeric readout) to calibrate Dev Port, Preview Port, Node Heap Limit, and Fetch Timeout.',
-      'In Pre-Execution Bulk Rename, pick Standard src/, Feature-Sliced, or Domain-Scoped layout and enforce kebab-case, camelCase, PascalCase, or snake_case across selected files.',
+      'Select optional packages in the setup flow.',
+      'Review each pinned package version and whether it is a runtime or development dependency.',
+      'The installer currently uses npm and does not apply custom package configuration files.',
     ],
     proTip:
-      'Pending file renames automatically inject mkdir -p and mv commands (or PowerShell New-Item) into the Generated Execution Plan.',
+      'Only packages explicitly selected in this step are installed as extra dependencies.',
   },
   {
     id: 'tut-4',
     stepNumber: '04',
-    title: 'Curate Libraries & Inspect Synthesized Outputs',
-    workspace: 'Package & Library Studio',
+    title: 'Review and install',
+    workspace: 'Create project · Step 4',
     screenId: 'packages',
     duration: '2 min',
     summary:
-      'Add curated or live npm registry packages, pin versions, inspect synthesized config files, package.json, and File Tree tabs, and export a standalone .sh or .ps1 script.',
+      'Review the framework, packages, and destination, then run the actual local installation.',
     instructions: [
-      'Open Package & Library Studio to filter libraries or query registry.npmjs.org live and queue any npm package with pinned versions.',
-      'Return to Project Studio Section 04 to inspect Commands, Config Files (vite.config.*, tsconfig.json, biome.json, vitest.config.*), package.json, File Tree, and Create Prompt.',
-      'Export the executable bootstrap script (.sh / .ps1) or copy any config manifest directly.',
+      'Confirm the target path and package list.',
+      'Click Install project and follow the scaffold, dependency-install, and optional-package progress.',
+      'When complete, find the result in Install history and open the project folder in your editor.',
     ],
     proTip:
-      'Press Cmd+K (macOS) or Ctrl+K (Windows/Linux) anywhere in Visual Line Interface to jump between workspaces or open official library documentation.',
+      'The local installer is for the same computer that runs this server; remote browser sessions cannot install files locally.',
   },
   {
     id: 'tut-5',
@@ -107,14 +107,14 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     screenId: 'workflows',
     duration: '3 min',
     summary:
-      'Organize dependency-ordered pipeline steps, sync directly from Project Studio, and run a monitored dry-run sequence with live Recharts timing charts.',
+      'Organize dependency-ordered operation previews; this feature is separate from project installation.',
     instructions: [
-      'Open Workflow Builder and click Sync from Studio to import your exact configured commands as ordered workflow nodes.',
-      'Reorder, enable/disable, or append reusable operation blocks, then click Execute Workflow.',
-      'In Operations Centre, pause, resume, cancel, or toggle Fault Injection to test step recovery and inspect live timing charts and logs.',
+      'Open Workflow Builder under More tools to inspect and organize preview operations.',
+      'Use the Dry-run simulator to view simulated progress and logs.',
+      'These tools do not execute the displayed shell commands.',
     ],
     proTip:
-      'Completed runs append automatically to Installation History and populate the Overview build duration trend chart.',
+      'Use Install history for real project installations.',
   },
   {
     id: 'tut-6',
@@ -140,49 +140,54 @@ const CODEBASE_MODULES = [
     path: 'server.ts',
     layer: 'Backend / Express + Vite',
     summary:
-      'Serves Vite middleware in dev (port 3000) and dist/ in production; exposes /api/health, /api/system/probe, /api/npm/*, and /api/ai/* routes.',
+      'Serves the local UI and API, including loopback-only native folder selection and npm project-install routes.',
+  },
+  {
+    path: 'server/localInstaller.ts',
+    layer: 'Local project installer',
+    summary:
+      'Validates project requests, builds fixed scaffold arguments, runs npm without a shell, and records install progress.',
+  },
+  {
+    path: 'src/components/screens/ProjectSetupWizard.tsx',
+    layer: 'Primary workflow',
+    summary:
+      'Guides framework, destination, optional packages, review, and actual local installation in four steps.',
   },
   {
     path: 'src/App.tsx',
     layer: 'Root State Orchestrator',
     summary:
-      'Holds ProjectConfig, live host probe telemetry, packages (curated + npm imports), workflows, recipes, history, settings, and Operations Centre execution loop.',
+      'Routes the main workspaces and stores project configuration, packages, install history, workflows, and settings.',
   },
   {
-    path: 'src/types/studio.ts',
+    path: 'src/types/localInstaller.ts',
     layer: 'Domain Contracts',
-    summary:
-      'Central TypeScript definitions for frameworks, host probes, npm registry packages, synthesized config files, bulk renames, AI providers, and studio settings.',
+    summary: 'Shared request and job-status contracts for the local installer.',
   },
   {
     path: 'src/data/studioCatalog.ts',
-    layer: 'Deterministic CLI & Config Engine',
+    layer: 'Catalog and preview data',
     summary:
-      'Catalog data plus pure engines: validateProjectCompatibility, buildExecutionPlan, buildScaffoldManifest, buildGeneratedPackageJson, and buildScaffoldConfigFiles.',
+      'Provides framework/package metadata and legacy command/config previews used by advanced tooling; it does not run installation.',
   },
   {
-    path: 'src/data/stackAdvisor.ts',
-    layer: 'Offline Stack & Prompt Engine',
+    path: 'src/services/localInstallerClient.ts',
+    layer: 'Browser-to-local API',
     summary:
-      'Provides CURATED_STACK_RECOMMENDATIONS, recommendStackOffline heuristic matching, and buildProjectCreationPrompt deterministic Markdown prompt generation.',
+      'Calls the local folder-picker, install-job, and progress endpoints and reports API failures to the setup flow.',
   },
   {
-    path: 'src/services/aiClient.ts & systemClient.ts',
-    layer: 'Typed Backend API Clients',
+    path: 'src/components/layout/Sidebar.tsx',
+    layer: 'Navigation',
     summary:
-      'Typed fetch wrappers for /api/ai/* (OpenRouter + 6 AI providers), /api/system/probe (OS/PATH/port probing), and /api/npm/* registry search.',
+      'Keeps Create project, Packages, and Install history primary; less-used preview and configuration tools are under More tools.',
   },
   {
-    path: 'src/components/studio/*',
-    layer: 'Workbench Modules',
-    summary:
-      'AiArchitectPanel (Stack Advisor + Project Creation Prompt Studio), BulkFileRenamePanel (directory alignment + regex/affix tools), and CommandPalette (Cmd+K).',
-  },
-  {
-    path: 'tests/studio.test.ts',
+    path: 'tests/localInstaller.test.ts',
     layer: 'Automated Unit Tests',
     summary:
-      'Node test runner suite (npm test) verifying validation checks, bulk-rename path alignment, execution plans, config synthesis, and offline prompts.',
+      'Verifies installer request validation, fixed scaffold arguments, package specs, and refusal to overwrite destinations.',
   },
 ];
 
@@ -262,7 +267,7 @@ export const DocumentationScreen: React.FC<DocumentationScreenProps> = ({ onNavi
                     onClick={() => onNavigate('project-studio')}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[4px] bg-[#C7A46A] hover:bg-[#D2B27C] text-[#101214] text-[12px] font-semibold cursor-pointer"
                   >
-                    <span>Launch Project Studio</span>
+                    <span>Start project setup</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -439,12 +444,14 @@ export const DocumentationScreen: React.FC<DocumentationScreenProps> = ({ onNavi
                   <span>Unidirectional Data Flow</span>
                 </div>
                 <pre className="font-mono text-[11.5px] text-[#929BA5] whitespace-pre-wrap leading-relaxed">
-{`ProjectConfig (src/App.tsx)
-  ├── validateProjectCompatibility(config)  ──▶ Right Contextual Inspector & Preflight Status
-  ├── buildScaffoldManifest(config)         ──▶ BulkFileRenamePanel & File Tree Preview
-  ├── buildExecutionPlan(config, pkgs, sh)  ──▶ Commands Preview, Workflow Sync & Operations Centre
-  ├── buildGeneratedPackageJson(config)     ──▶ package.json Live Preview Tab
-  └── buildProjectCreationPrompt(...)       ──▶ Project Creation Prompt (Offline + Optional /api/ai/assist)`}
+{`Create project wizard (browser)
+  ├── choose framework, folder, and optional packages
+  ├── POST /api/projects/install
+  │     └── validate request and destination
+  │           └── spawn Node + npm-cli.js with fixed arguments (no shell)
+  └── poll install job and display step output
+
+Workflow Builder and Operations Centre are separate dry-run previews.`}
                 </pre>
               </div>
             </section>

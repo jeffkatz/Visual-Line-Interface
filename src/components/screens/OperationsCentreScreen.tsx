@@ -171,7 +171,7 @@ export const OperationsCentreScreen: React.FC<OperationsCentreScreenProps> = ({
             onClick={onBackToStudio}
             className="px-3 py-2 rounded-[4px] bg-[#171A1E] border border-[#343B43] hover:border-[#49535E] text-[12px] font-medium text-[#F1F3F5] cursor-pointer"
           >
-            ← Project Studio
+            ← Create project
           </button>
 
           {isRunning ? (

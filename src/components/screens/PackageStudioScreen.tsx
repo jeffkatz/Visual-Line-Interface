@@ -168,7 +168,7 @@ export const PackageStudioScreen: React.FC<PackageStudioScreenProps> = ({
           onClick={onApplyToStudio}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-[4px] bg-[#C7A46A] hover:bg-[#D2B27C] text-[#101214] text-[12.5px] font-semibold uppercase tracking-wide cursor-pointer transition-colors"
         >
-          <span>Sync Tray to Project Studio ({queuedPackages.length})</span>
+          <span>Add selected packages to setup ({queuedPackages.length})</span>
         </button>
       </header>
 

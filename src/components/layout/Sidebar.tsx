@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Activity,
   Blocks,
   BookMarked,
   BookOpen,
+  ChevronDown,
   Cpu,
   FolderKanban,
   GitBranch,
   History,
   LayoutGrid,
+  MoreHorizontal,
   Package,
   PlaySquare,
   Search,
@@ -48,41 +50,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
   recipeCount,
   onOpenCommandPalette,
 }) => {
-  const workspaceItems: NavItem[] = [
-    { id: 'overview', label: 'Overview', icon: LayoutGrid },
-    { id: 'project-studio', label: 'Project Studio', icon: FolderKanban },
+  const primaryItems: NavItem[] = [
+    { id: 'project-studio', label: 'Create project', icon: FolderKanban },
     {
       id: 'packages',
-      label: 'Package & Library Studio',
+      label: 'Packages',
       icon: Package,
       meta: selectedPackageCount > 0 ? String(selectedPackageCount) : undefined,
     },
-    { id: 'runtimes', label: 'Runtime Manager', icon: Cpu },
-    { id: 'workflows', label: 'Workflow Builder', icon: GitBranch },
+    {
+      id: 'history',
+      label: 'Install history',
+      icon: History,
+    },
+  ];
+
+  const moreItems: NavItem[] = [
+    { id: 'overview', label: 'Overview', icon: LayoutGrid },
+    { id: 'runtimes', label: 'Runtime manager', icon: Cpu },
+    { id: 'workflows', label: 'Workflow builder', icon: GitBranch },
     {
       id: 'operations',
-      label: 'Operations Centre',
+      label: 'Dry-run simulator',
       icon: PlaySquare,
       meta: isExecutionActive ? 'LIVE' : undefined,
     },
-  ];
-
-  const managementItems: NavItem[] = [
-    { id: 'integrations', label: 'Integration Registry', icon: Blocks },
-    {
-      id: 'recipes',
-      label: 'Project Recipes',
-      icon: BookMarked,
-      meta: String(recipeCount),
-    },
-    { id: 'history', label: 'Installation History', icon: History },
-  ];
-
-  const systemItems: NavItem[] = [
+    { id: 'integrations', label: 'Integration registry', icon: Blocks },
+    { id: 'recipes', label: 'Project recipes', icon: BookMarked, meta: String(recipeCount) },
     { id: 'diagnostics', label: 'Diagnostics', icon: Stethoscope },
-    { id: 'docs', label: 'Docs & Tutorial', icon: BookOpen },
+    { id: 'docs', label: 'Docs & tutorial', icon: BookOpen },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
+
+  const [moreOpen, setMoreOpen] = useState(false);
+  const primaryIds: ScreenId[] = ['project-studio', 'packages', 'history'];
+  const moreIsActive = !primaryIds.includes(activeScreen);
+
+  useEffect(() => {
+    if (moreIsActive) setMoreOpen(true);
+  }, [moreIsActive]);
 
   const renderGroup = (title: string, items: NavItem[]) => (
     <div className="flex flex-col gap-1">
@@ -167,10 +173,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
-        <nav aria-label="Primary Workspace Navigation" className="p-3 flex flex-col gap-5 overflow-y-auto">
-          {renderGroup('Workspace', workspaceItems)}
-          {renderGroup('Management', managementItems)}
-          {renderGroup('System', systemItems)}
+        <nav aria-label="Primary workspace navigation" className="p-3 flex flex-col gap-4 overflow-y-auto">
+          {renderGroup('Workspace', primaryItems)}
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((open) => !open)}
+              aria-expanded={moreOpen}
+              className={`flex items-center justify-between rounded-[4px] border px-3 py-2 text-left text-[13px] transition-colors ${
+                moreIsActive
+                  ? 'border-[#3B434D] bg-[#252A30] text-[#F1F3F5]'
+                  : 'border-transparent text-[#929BA5] hover:bg-[#1D2126] hover:text-[#F1F3F5]'
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <MoreHorizontal className="h-4 w-4 text-[#626D78]" />
+                <span>More tools</span>
+              </span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {moreOpen && (
+              <div className="mt-1 flex flex-col gap-4 border-l border-[#2A3038] pl-2">
+                {renderGroup('Other workspaces', moreItems)}
+              </div>
+            )}
+          </div>
         </nav>
       </div>
 

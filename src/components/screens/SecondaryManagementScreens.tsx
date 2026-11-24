@@ -120,14 +120,14 @@ export const ProjectRecipesScreen: React.FC<{
         Project Recipes
       </h1>
       <p className="text-[13px] text-[#929BA5] mt-0.5">
-        Saved environment presets ready to load into Project Studio.
+        Saved environment presets ready to load into Create project.
       </p>
     </header>
     <div className="flex-1 overflow-y-auto px-6 py-6">
       <div className="max-w-[1060px] mx-auto flex flex-col gap-3">
         {recipes.length === 0 ? (
           <div className="p-8 text-center bg-[#171A1E] border border-[#2D333B] rounded-[5px] text-[#929BA5]">
-            No saved recipes yet. Use “Save as Recipe” in Project Studio to store a configuration.
+            No saved recipes yet. Use the Packages and Create project workspaces to build a new setup.
           </div>
         ) : (
           recipes.map((rec) => (
@@ -578,7 +578,7 @@ export const SettingsScreen: React.FC<{
             {onApplyDefaultsToStudio && (
               <div className="pt-3 border-t border-[#2A3038] flex flex-wrap items-center justify-between gap-3">
                 <div className="text-[12px] text-[#929BA5]">
-                  Sync default directory, package manager, and runtime to the active Project Studio workspace.
+                  Apply preview defaults. Choose the actual install folder in Create project.
                 </div>
                 <button
                   type="button"

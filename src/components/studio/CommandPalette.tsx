@@ -51,7 +51,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   const actions = useMemo<PaletteAction[]>(() => {
     const navItems: PaletteAction[] = [
-      { id: 'nav-studio', group: 'Navigation', title: 'Project Studio', subtitle: 'Configure scaffold, bulk-rename, and execute', onSelect: () => onNavigate('project-studio') },
+      { id: 'nav-studio', group: 'Navigation', title: 'Create project', subtitle: 'Choose a framework, folder, and packages; install locally', onSelect: () => onNavigate('project-studio') },
       { id: 'nav-overview', group: 'Navigation', title: 'Overview', subtitle: 'Workstation readiness and quick recipes', onSelect: () => onNavigate('overview') },
       { id: 'nav-packages', group: 'Navigation', title: 'Package & Library Studio', subtitle: 'Browse and configure dependencies', onSelect: () => onNavigate('packages') },
       { id: 'nav-runtimes', group: 'Navigation', title: 'Runtime Manager', subtitle: 'Manage Node.js, Deno, and Bun channels', onSelect: () => onNavigate('runtimes') },

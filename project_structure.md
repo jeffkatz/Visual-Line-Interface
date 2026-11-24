@@ -9,9 +9,9 @@
 
 - **Frontend**: React 19 + TypeScript (`strict` / `noEmit` check) + Vite 8 + Tailwind CSS v4 (`@tailwindcss/vite`)
 - **Charts & Icons**: `recharts` (`^3.11.1`), `lucide-react` (`^0.546.0`)
-- **Backend / Dev Entry**: Express 4 (`server.ts`) running on port `3000`:
+- **Backend / Dev Entry**: Express 4 (`server.ts`) bound to loopback on port `3000`:
   - **Development (`npm run dev`)**: `tsx server.ts` mounts `vite.middlewares` (`middlewareMode: true`, `appType: 'spa'`) alongside `/api/*` routes.
-  - **Production (`npm run build && npm start`)**: `vite build` outputs `dist/`, and `node server.ts` (Node 22+ native TypeScript type stripping) serves static assets + SPA fallback alongside `/api/*`.
+  - **Production (`npm run build && npm start`)**: `vite build` outputs `dist/`; `npm start` serves static assets + SPA fallback alongside `/api/*`.
 - **AI Integration**: Server-side `@google/genai` SDK (`^3.6.1`) + REST proxies for OpenRouter, OpenAI, Anthropic, Groq, Mistral, and Ollama.
 
 ---
@@ -23,14 +23,17 @@
 ├── .env.example                          # Template for optional server-side provider secrets
 ├── index.html                            # HTML entry point (loads Plus Jakarta Sans, IBM Plex Sans, JetBrains Mono)
 ├── metadata.json                         # App metadata & capabilities (MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API)
-├── package.json                          # Dependencies & scripts (dev: tsx server.ts, start: node server.ts, lint, test)
+├── package.json                          # Dependencies & scripts (dev/start: tsx server.ts, typecheck, test)
 ├── tsconfig.json                         # TypeScript config (ES2022, bundler resolution, allowImportingTsExtensions)
 ├── vite.config.ts                        # Vite 8 + React + Tailwind v4 plugin config (HMR disabled via DISABLE_HMR)
-├── server.ts                             # Full-stack Express server: /api/system/probe, /api/npm/*, /api/ai/*
+├── server.ts                             # Full-stack Express server and local-only API routes
+├── server/
+│   └── localInstaller.ts                 # Native folder selection and validated npm install jobs
 ├── tests/
-│   └── studio.test.ts                    # Node test suite verifying validators, renames, config synthesis & prompts
+│   ├── studio.test.ts                    # Preview catalog, validation, config synthesis & prompt tests
+│   └── localInstaller.test.ts            # Installer validation and destination safety tests
 ├── README.md                             # Project overview, author credits, and origin prompt
-├── DOCUMENTATION.md                      # End-user manual & 6-chapter tutorial
+├── DOCUMENTATION.md                      # End-user manual and installation walkthrough
 ├── PROJECT_AUDIT_AND_ROADMAP.md          # Implementation audit & future native daemon roadmap
 ├── project_structure.md                  # THIS FILE — codebase blueprint for coding agents & humans
 └── src/
@@ -38,14 +41,16 @@
     ├── index.css                         # Tailwind CSS v4 import (@import "tailwindcss";) + industrial hardware utilities
     ├── App.tsx                           # Root state container, host probe sync, localStorage migration, screen router
     ├── types/
-    │   └── studio.ts                     # Canonical TypeScript domain types, probes, npm results & AI contracts
+    │   ├── studio.ts                     # Project catalog, preview, probes, npm results & AI contracts
+    │   └── localInstaller.ts             # Shared local install request and job types
     ├── data/
     │   ├── studioCatalog.ts              # Frameworks, runtimes, packages, CLI/config synthesizers & validators
     │   ├── stackAdvisor.ts               # Offline curated stack profiles, heuristic recommender, & Project Creation Prompt builder
     │   └── aiProviders.ts                # Metadata & curated model lists for OpenRouter + 6 other AI providers
     ├── services/
     │   ├── aiClient.ts                   # Typed browser fetch client calling /api/ai/* (zero keys in browser)
-    │   └── systemClient.ts               # Typed browser fetch client calling /api/system/probe & /api/npm/*
+    │   ├── systemClient.ts               # Typed browser fetch client calling /api/system/probe & /api/npm/*
+    │   └── localInstallerClient.ts       # Folder-picker, installation, and progress API client
     └── components/
         ├── charts/
         │   └── StudioCharts.tsx          # Recharts visualizations (PipelinePhase, HistoryDuration, ExecutionTiming, PMBenchmark)
@@ -62,16 +67,14 @@
         │   ├── Sidebar.tsx               # Left persistent navigation rail, Cmd+K trigger, & local environment footer
         │   └── InspectorPanel.tsx        # Right collapsible contextual inspector + Compatibility Auto-Fix & Docs links
         ├── studio/
-        │   ├── AiArchitectPanel.tsx      # Stack Recommendations (curated/offline/AI) + Project Creation Prompt Studio
-        │   ├── BulkFileRenamePanel.tsx   # Pre-execution directory alignment, case transforms, regex/affix, & AI rename advisor
-        │   └── CommandPalette.tsx        # Global Cmd+K / Ctrl+K quick-jump, action, and official docs search modal
+        │   └── CommandPalette.tsx        # Global Cmd+K / Ctrl+K quick-jump and official docs search
         └── screens/
-            ├── OverviewScreen.tsx        # Workstation readiness, Recharts phase/history charts, quick recipes, recent runs
-            ├── ProjectStudioScreen.tsx   # Primary configuration workbench + Generated Execution Plan (4 tabs) + Initialise bar
-            ├── PackageStudioScreen.tsx   # Searchable/filterable dependency catalog & version pinning
+            ├── ProjectSetupWizard.tsx    # Primary four-step framework, folder, package, and install flow
+            ├── OverviewScreen.tsx        # Workstation summary, history charts, and setup entry point
+            ├── PackageStudioScreen.tsx   # Searchable dependency catalog and package selection
             ├── RuntimeManagerScreen.tsx  # Runtime version channels & PM Cold/Warm benchmark chart
-            ├── WorkflowBuilderScreen.tsx # Dependency-ordered workflow DAG editor & Sync from Studio
-            ├── OperationsCentreScreen.tsx# Live dry-run runner, timing chart, log stream, fault injection, & AI diagnostics
+            ├── WorkflowBuilderScreen.tsx # Advanced workflow preview editor; does not execute commands
+            ├── OperationsCentreScreen.tsx# Dry-run simulator; does not execute commands
             ├── DocumentationScreen.tsx   # In-app interactive tutorial, control reference, & codebase map
             └── SecondaryManagementScreens.tsx # IntegrationRegistry, ProjectRecipes, InstallationHistory, Diagnostics, Settings
 ```
@@ -80,21 +83,20 @@
 
 ## 3. Core Architectural Principles & Data Flow
 
-### 3.1 Unidirectional Deterministic Core (`src/App.tsx` + `src/data/studioCatalog.ts`)
-Visual Line Interface treats `ProjectConfig` in `src/App.tsx` as the single source of truth. Every UI change triggers `handleUpdateConfig(patch)`, which synchronizes `selectedPackageIds` (for Tailwind, TypeScript, ESLint, Prettier, Biome, Vitest, Playwright) and recomputes derived outputs via pure functions in `src/data/studioCatalog.ts` and `src/data/stackAdvisor.ts`:
+### 3.1 Local Project Installation
+The primary Create project flow sends a typed request from `ProjectSetupWizard` through `localInstallerClient` to the loopback-only Express server. The server validates the project and destination, builds fixed scaffold arguments, and invokes npm's JavaScript CLI through Node without a shell:
 
 ```text
-User Interaction (Controls / Stack Advisor / Bulk Rename / Package Studio)
-        │
-        ▼
-ProjectConfig (src/App.tsx state)
-        ├──▶ validateProjectCompatibility(config)     -> CompatibilityIssue[] (Inspector & Preflight)
-        ├──▶ buildScaffoldManifest(config)            -> ScaffoldFileEntry[] (Bulk Rename & File Tree tab)
-        ├──▶ buildExecutionPlan(config, pkgs, shell)  -> ExecutionCommandStep[] (Commands tab & Operations)
-        ├──▶ buildGeneratedPackageJson(config, pkgs)  -> JSON string (package.json tab)
-        ├──▶ buildScaffoldConfigFiles(config, pkgs)   -> GeneratedConfigFile[] (Config Files tab)
-        └──▶ buildProjectCreationPrompt(...)          -> Markdown string (Create Prompt tab & Prompt Studio)
+ProjectSetupWizard
+  ├── POST /api/local/choose-directory ──▶ native folder picker
+  └── POST /api/projects/install ────────▶ validated install job
+                                          ├── framework scaffold
+                                          ├── npm dependency install
+                                          └── optional selected packages
+  └── GET /api/projects/install/:id ─────▶ progress and terminal result
 ```
+
+`src/data/studioCatalog.ts` still supports the separate advanced preview tools. Its generated commands and configuration previews are not executed by those screens.
 
 ### 3.2 `localStorage` Persistence Keys (`src/App.tsx`)
 All four keys migrate transparently from legacy `visual_cli_studio_*_v1` keys via `readStorageWithMigration`:
@@ -124,6 +126,9 @@ All four keys migrate transparently from legacy `visual_cli_studio_*_v1` keys vi
 - **Port & Middleware**: Reads `PORT` (default `3000`), parses JSON (`limit: '512kb'`), mounts Vite dev middleware when `NODE_ENV !== 'production'` or serves `dist/` in production.
 - **Endpoints**:
   - `GET /api/health` — Returns `{ ok: true, timestamp }`.
+  - `POST /api/local/choose-directory` — Opens a native folder picker for the local user.
+  - `POST /api/projects/install` — Validates and starts a real npm scaffold/install job; existing destination folders are not overwritten.
+  - `GET /api/projects/install/:id` — Returns the install job status and captured output.
   - `GET /api/system/probe?devPort=...&previewPort=...` — Executes safe `execFile` version/path probes (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`, `git`), detects host OS/arch/`PATH`, and tests live TCP port availability via `net.createServer()`.
   - `GET /api/npm/search?q=...` — Queries `https://registry.npmjs.org/-/v1/search` and returns formatted `NpmSearchPackage[]` entries.
   - `GET /api/npm/package?name=...` — Fetches & caches (5 min TTL) `https://registry.npmjs.org/<name>` metadata (`NpmPackageDetail`) including recent stable versions, license, homepage, peer dependencies, and deprecation flags.
@@ -169,7 +174,7 @@ Four Recharts components styled to match `#101214` / `#1D2126` / `#C7A46A` / `#6
 ## 5. Rules & Guardrails for Coding Agents
 
 1. **No Browser API Key Inputs or Client Secrets**: Never add UI inputs for API keys, never import `@google/genai` in `src/`, and never read private env vars via `VITE_*`. All keys stay in server `process.env`.
-2. **Preserve Non-AI Baseline**: Every core workflow (`ProjectStudioScreen`, `BulkFileRenamePanel`, `PackageStudioScreen`, `WorkflowBuilderScreen`, `OperationsCentreScreen`, `buildProjectCreationPrompt`, `recommendStackOffline`) must continue working cleanly when `settings.aiEnabled === false` or when backend providers are unconfigured.
+2. **Keep Installation Honest and Local**: The setup wizard is the only real project installer. Preserve loopback/origin checks, fixed scaffold arguments, no-shell process execution, destination collision checks, and explicit job errors. Workflow Builder and Operations Centre are dry-run previews.
 3. **Node ESM Type Imports in `server.ts`**: Keep explicit `.ts` extensions on `import type` statements in `server.ts` (e.g. `import type { ... } from './src/types/studio.ts'`) so both `tsc --noEmit` (`allowImportingTsExtensions: true`) and Node v22+ native type stripping work.
 4. **Styling & Design System Rules**:
    - Use Tailwind CSS v4 utility classes; keep the `#101214` / `#171A1E` / `#1D2126` / `#252A30` + `#C7A46A` (brass) + `#65B9A5` (technical green) palette.
@@ -180,9 +185,10 @@ Four Recharts components styled to match `#101214` / `#1D2126` / `#C7A46A` / `#6
 
 ## 6. Common Extension Recipes
 
-### Adding a New Library to `Package & Library Studio`
-1. Add a `StudioPackage` entry to `STUDIO_PACKAGES` in `src/data/studioCatalog.ts` (include `docsUrl`, `availableVersions`, `compatibleFrameworks`, `integrationFiles`).
-2. If the package needs dedicated install flags or init commands, handle its `id` in `buildExecutionPlan` and `buildGeneratedPackageJson` in `src/data/studioCatalog.ts`, and add its `id` to `allowedExtraPackages` in `server.ts` (`sanitizeRecommendation`).
+### Adding an Installable Package
+1. Update package selection metadata and request validation.
+2. Add focused tests for the accepted package spec and the generated npm arguments.
+3. Keep the installer invocation shell-free; do not treat preview commands as executable input.
 
 ### Adding a New Workspace Screen
 1. Add the screen identifier to `ScreenId` in `src/types/studio.ts`.
