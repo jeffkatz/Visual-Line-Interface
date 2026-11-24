@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Plus Jakarta Sans", "IBM Plex Sans", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-canvas: #101214;
+  --color-surface: #171A1E;
+  --color-panel: #1D2126;
+  --color-elevated: #252A30;
+  --color-border: #343B43;
+  --color-text-primary: #F1F3F5;
+  --color-text-secondary: #929BA5;
+  --color-text-muted: #626D78;
+  --color-brass: #C7A46A;
+  --color-tech-green: #65B9A5;
+  --color-info: #77A9DC;
+  --color-warning: #E4AD63;
+  --color-error: #DF7777;
+  --color-success: #70BD92;
+}
+
+@layer base {
+  html,
+  body {
+    background-color: #101214;
+    color: #F1F3F5;
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp,
+  .font-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Precision workstation scrollbars */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #101214;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2B3139;
+    border: 2px solid #101214;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3B434E;
+  }
+}
+
+/* Precision hairline instrumentation grid background for workflow canvas */
+.instrument-grid-bg {
+  background-color: #121518;
+  background-image:
+    linear-gradient(to right, rgba(52, 59, 67, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(52, 59, 67, 0.22) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Subtle machined bezel shadow */
+.hardware-bezel {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.hardware-recessed {
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.55),
+    0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Visual Line Interface",
+  "description": "Precision visual software installation, project scaffolding, and development environment configuration workstation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
