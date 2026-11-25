@@ -11,6 +11,7 @@ export const AI_PROVIDERS: AiProviderMeta[] = [
     docsUrl: 'https://openrouter.ai/docs/quickstart',
     defaultModel: 'google/gemini-2.5-flash',
     supportsCustomModel: true,
+    supportsCustomEndpoint: true,
     models: [
       {
         id: 'google/gemini-2.5-flash',
@@ -85,6 +86,7 @@ export const AI_PROVIDERS: AiProviderMeta[] = [
     docsUrl: 'https://platform.openai.com/docs/api-reference',
     defaultModel: 'gpt-4o-mini',
     supportsCustomModel: true,
+    supportsCustomEndpoint: true,
     models: [
       {
         id: 'gpt-4o-mini',
@@ -141,6 +143,7 @@ export const AI_PROVIDERS: AiProviderMeta[] = [
     docsUrl: 'https://console.groq.com/docs/overview',
     defaultModel: 'llama-3.3-70b-versatile',
     supportsCustomModel: true,
+    supportsCustomEndpoint: true,
     models: [
       {
         id: 'llama-3.3-70b-versatile',
@@ -166,6 +169,7 @@ export const AI_PROVIDERS: AiProviderMeta[] = [
     docsUrl: 'https://docs.mistral.ai/api/',
     defaultModel: 'codestral-latest',
     supportsCustomModel: true,
+    supportsCustomEndpoint: true,
     models: [
       {
         id: 'codestral-latest',
@@ -191,6 +195,7 @@ export const AI_PROVIDERS: AiProviderMeta[] = [
     docsUrl: 'https://github.com/ollama/ollama/blob/main/docs/api.md',
     defaultModel: 'qwen2.5-coder:7b',
     supportsCustomModel: true,
+    supportsCustomEndpoint: true,
     models: [
       {
         id: 'qwen2.5-coder:7b',

@@ -12,6 +12,9 @@ import {
   RefreshCw,
   Settings,
   Stethoscope,
+  FolderOpen,
+  Import,
+  Trash2,
 } from 'lucide-react';
 import type {
   AiProviderId,
@@ -25,21 +28,28 @@ import type {
   StudioSettings,
   SystemProbeResult,
 } from '../../types/studio';
-import type { EditorId, ProjectRunSession, ProjectRunTarget } from '../../types/projectActions';
+import type { EditorId, InstalledProject, ProjectRunSession, ProjectRunTarget } from '../../types/projectActions';
 import { AI_PROVIDERS } from '../../data/aiProviders';
 import { DATABASE_OPTIONS } from '../../data/databases';
 import { CURATED_STACK_RECOMMENDATIONS } from '../../data/stackAdvisor';
-import { fetchOpenRouterModels, testAiProvider } from '../../services/aiClient';
+import { fetchOpenRouterModels, saveAiProviderSettings, testAiProvider } from '../../services/aiClient';
 import {
   fetchProjectEditors,
+  fetchInstalledProjects,
   fetchProjectRuns,
+  importProject,
+  openProjectFolder,
   openProjectInEditor,
+  removeInstalledProject,
   startProjectRun,
   stopProjectRun,
 } from '../../services/projectActionsClient';
 import { StatusIndicator } from '../controls/StatusIndicator';
 import { MechanicalToggle } from '../controls/MechanicalToggle';
 import { SegmentedSelector } from '../controls/SegmentedSelector';
+import { ConfirmDialog } from '../controls/ConfirmDialog';
+import { ProjectGitPanel } from './ProjectGitPanel';
+import { chooseLocalDirectory } from '../../services/localInstallerClient';
 
 /* TECH STACK */
 export const TechStackScreen: React.FC<{
@@ -102,12 +112,18 @@ export const TechStackScreen: React.FC<{
 export const InstallationHistoryScreen: React.FC<{
   history: HistoryRecord[];
   onClearHistory: () => void;
-}> = ({ history, onClearHistory }) => {
+  onRemoveHistory: (directory: string) => void;
+}> = ({ history, onClearHistory, onRemoveHistory }) => {
   const [runs, setRuns] = useState<ProjectRunSession[]>([]);
   const [editors, setEditors] = useState<Array<{ id: EditorId; label: string; available: boolean }>>([]);
+  const [projects, setProjects] = useState<InstalledProject[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [confirmingProject, setConfirmingProject] = useState<HistoryRecord | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -122,6 +138,13 @@ export const InstallationHistoryScreen: React.FC<{
       }
     };
     void refreshRuns();
+    fetchInstalledProjects()
+      .then((projectList) => {
+        if (active) setProjects(projectList);
+      })
+      .catch((loadError: unknown) => {
+        if (active) setError(loadError instanceof Error ? loadError.message : 'Unable to load installed projects.');
+      });
     fetchProjectEditors()
       .then((projectEditors) => {
         if (active) setEditors(projectEditors);
@@ -137,6 +160,50 @@ export const InstallationHistoryScreen: React.FC<{
       window.clearInterval(timer);
     };
   }, []);
+
+  const projectHistory = projects.map((project): HistoryRecord => ({
+    id: project.id,
+    projectName: project.projectName,
+    projectType: project.projectType,
+    fullStackLayout: project.fullStackLayout,
+    frontendPath: project.frontendPath,
+    apiPath: project.apiPath,
+    workspacePath: project.workspacePath,
+    framework: project.framework,
+    packageManager: project.packageManager ?? 'npm',
+    directory: project.directory,
+    timestamp: new Date(project.addedAt).toLocaleString(),
+    status: 'completed',
+    durationSec: 0,
+    commandCount: 0,
+    mode: 'Local Installation',
+  }));
+  const registeredDirectories = new Set(projects.map((project) => project.directory.toLowerCase()));
+  const visibleHistory = [
+    ...projectHistory,
+    ...history.filter((record) => !registeredDirectories.has(record.directory.toLowerCase())),
+  ];
+
+  const handleImport = async () => {
+    setImporting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const directory = await chooseLocalDirectory();
+      if (!directory) return;
+      const project = await importProject(directory);
+      setProjects((previous) => [
+        project,
+        ...previous.filter((item) => item.directory !== project.directory),
+      ]);
+      setExpandedId(project.id);
+      setNotice(`Imported ${project.projectName}. No project files were changed.`);
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : 'Unable to import this project folder.');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const runTarget = async (item: HistoryRecord, target: ProjectRunTarget) => {
     const directory =
@@ -173,8 +240,7 @@ export const InstallationHistoryScreen: React.FC<{
   };
 
   const handleOpen = async (directory: string, value: string) => {
-    const [editorId] = value.split(':');
-    const editor = editors.find((item) => item.id === editorId);
+    const editor = editors.find((item) => item.id === value);
     if (!editor || !editor.available) {
       setError(`${editor?.label ?? 'Selected editor'} is not available on PATH.`);
       return;
@@ -184,6 +250,38 @@ export const InstallationHistoryScreen: React.FC<{
       await openProjectInEditor(directory, editor.id);
     } catch (openError) {
       setError(openError instanceof Error ? openError.message : 'Unable to open project in editor.');
+    }
+  };
+
+  const handleOpenFolder = async (directory: string) => {
+    setError(null);
+    try {
+      await openProjectFolder(directory);
+      setNotice('Project folder opened in the system file manager.');
+    } catch (openError) {
+      setError(openError instanceof Error ? openError.message : 'Unable to open the project folder.');
+    }
+  };
+
+  const handleRemoveProject = async () => {
+    const item = confirmingProject;
+    if (!item) return;
+    setBusyId(item.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const registered = projects.find((project) => project.directory === item.directory);
+      if (registered) {
+        await removeInstalledProject(registered.id);
+        setProjects((previous) => previous.filter((project) => project.id !== registered.id));
+      }
+      onRemoveHistory(item.directory);
+      setNotice(`${item.projectName} was removed from VLI. Its folder and files were not deleted.`);
+      setConfirmingProject(null);
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : 'Unable to remove the project record.');
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -211,32 +309,44 @@ export const InstallationHistoryScreen: React.FC<{
             Run, stop, and open local projects. Each run gets a free port selected by the operating system.
           </p>
         </div>
-        {history.length > 0 && (
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={onClearHistory}
-            className="px-3 py-1.5 rounded-[4px] bg-[#171A1E] border border-[#343B43] hover:border-[#DF7777] text-[12px] text-[#929BA5] hover:text-[#DF7777] cursor-pointer"
+            disabled={importing}
+            onClick={() => void handleImport()}
+            className="inline-flex items-center gap-1.5 rounded-[4px] border border-[#C7A46A]/60 bg-[#252A30] px-3 py-1.5 text-[12px] text-[#F1F3F5] hover:border-[#C7A46A] disabled:opacity-50"
           >
-            Clear list
+            <Import className="h-3.5 w-3.5 text-[#C7A46A]" /> {importing ? 'Choosing folder…' : 'Import project'}
           </button>
-        )}
+          {history.length > 0 && (
+            <button type="button" onClick={() => setConfirmingClear(true)} className="px-3 py-1.5 rounded-[4px] bg-[#171A1E] border border-[#343B43] hover:border-[#DF7777] text-[12px] text-[#929BA5] hover:text-[#DF7777] cursor-pointer">
+              Clear install history
+            </button>
+          )}
+        </div>
       </header>
       <div className="flex-1 overflow-y-auto px-6 py-6">
         <div className="max-w-[1060px] mx-auto flex flex-col gap-3">
           {error && <div role="alert" className="rounded border border-[#DF7777]/50 bg-[#DF7777]/5 p-3 text-[12px] text-[#DF7777]">{error}</div>}
-          {history.length === 0 ? (
+          {notice && <div role="status" className="rounded border border-[#65B9A5]/40 bg-[#65B9A5]/5 p-3 text-[12px] text-[#65B9A5]">{notice}</div>}
+          {visibleHistory.length === 0 ? (
             <div className="rounded-[5px] border border-[#2D333B] bg-[#171A1E] p-8 text-center text-[13px] text-[#929BA5]">
               <History className="w-6 h-6 mx-auto mb-2 text-[#626D78]" />
-              No installed projects yet. Create a frontend, API, or full-stack project to see it here.
+              No installed projects yet. Import an existing project or create a new one.
             </div>
-          ) : history.map((item) => {
+          ) : visibleHistory.map((item) => {
             const isExpanded = expandedId === item.id;
+            const registeredProject = projects.find((project) => project.directory === item.directory);
             const projectRuns = runs.filter((run) =>
               run.directory === item.directory ||
               run.directory === item.frontendPath ||
               run.directory === item.apiPath
             );
             const projectType = item.projectType ?? 'frontend';
+            const folderPath = item.projectType === 'fullstack' && item.fullStackLayout === 'workspace'
+              ? item.workspacePath ?? item.directory
+              : item.directory;
+            const gitDirectory = folderPath;
             const stackLabel = projectType === 'api'
               ? 'Express API · TypeScript'
               : `${item.framework}${projectType === 'fullstack' ? ' + Express API' : ''}`;
@@ -255,6 +365,7 @@ export const InstallationHistoryScreen: React.FC<{
                     </button>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#929BA5]">
                       <span>{stackLabel}</span>
+                      {registeredProject && <span>{registeredProject.origin === 'imported' ? 'Imported' : 'Created by VLI'}</span>}
                       <span>{item.timestamp}</span>
                       <StatusIndicator
                         tone={item.status === 'completed' ? 'installed' : item.status === 'failed' ? 'failed' : 'attention'}
@@ -287,6 +398,14 @@ export const InstallationHistoryScreen: React.FC<{
                         Run both
                       </button>
                     )}
+                    <button
+                      type="button"
+                      aria-label={`Open ${item.projectName} folder`}
+                      onClick={() => void handleOpenFolder(folderPath)}
+                      className="inline-flex items-center gap-1.5 rounded border border-[#343B43] px-3 py-2 text-[11px] text-[#929BA5] hover:border-[#C7A46A] hover:text-[#F1F3F5]"
+                    >
+                      <FolderOpen className="h-3.5 w-3.5" /> Folder
+                    </button>
                     <select
                       aria-label={`Open ${item.projectName} in an editor`}
                       defaultValue=""
@@ -294,7 +413,7 @@ export const InstallationHistoryScreen: React.FC<{
                         if (!event.target.value) return;
                         const [targetKey, editorId] = event.target.value.split(':');
                         const target = openOptions(item).find((option) => option.key === targetKey);
-                        if (target) void handleOpen(target.directory, `${editorId}:`);
+                        if (target) void handleOpen(target.directory, editorId);
                         event.target.value = '';
                       }}
                       className="max-w-[190px] rounded border border-[#343B43] bg-[#101214] px-2.5 py-2 text-[11px] text-[#F1F3F5]"
@@ -310,6 +429,15 @@ export const InstallationHistoryScreen: React.FC<{
                         </optgroup>
                       ))}
                     </select>
+                      <button
+                        type="button"
+                        disabled={busyId === item.id || projectRuns.some((run) => run.status === 'running')}
+                        aria-label={`Remove ${item.projectName} from VLI`}
+                        onClick={() => setConfirmingProject(item)}
+                        className="inline-flex items-center gap-1.5 rounded border border-[#343B43] px-2.5 py-2 text-[11px] text-[#DF7777] hover:border-[#DF7777] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Remove
+                      </button>
                   </div>
                 </div>
                 {isExpanded && (
@@ -318,6 +446,14 @@ export const InstallationHistoryScreen: React.FC<{
                       <div><span className="text-[#626D78]">Installation duration</span><div className="mt-1 font-mono text-[#F1F3F5]">{item.durationSec.toFixed(1)}s</div></div>
                       <div><span className="text-[#626D78]">Layout</span><div className="mt-1 text-[#F1F3F5]">{item.fullStackLayout === 'separate' ? 'Separate sibling folders' : item.fullStackLayout === 'workspace' && projectType === 'fullstack' ? 'Single workspace folder' : 'Single project'}</div></div>
                     </div>
+                    {projectType === 'fullstack' && item.fullStackLayout === 'separate' ? (
+                      <>
+                        <ProjectGitPanel directory={item.frontendPath ?? item.directory} label="Frontend" />
+                        {item.apiPath && <ProjectGitPanel directory={item.apiPath} label="API" />}
+                      </>
+                    ) : (
+                      <ProjectGitPanel directory={gitDirectory} />
+                    )}
                     {projectRuns.length > 0 && (
                       <div className="mt-3 flex flex-col gap-2">
                         {projectRuns.map((run) => (
@@ -347,6 +483,27 @@ export const InstallationHistoryScreen: React.FC<{
           })}
         </div>
       </div>
+      <ConfirmDialog
+        open={Boolean(confirmingProject)}
+        title={`Remove ${confirmingProject?.projectName ?? 'project'} from VLI?`}
+        description="This removes the project record from VLI and your local installation history. The project folder and its files will not be deleted. Stop any running project before removing it."
+        confirmLabel="Remove from VLI"
+        destructive
+        onCancel={() => setConfirmingProject(null)}
+        onConfirm={() => void handleRemoveProject()}
+      />
+      <ConfirmDialog
+        open={confirmingClear}
+        title="Clear installation history?"
+        description="This clears the saved installation history entries only. Project folders and projects registered in VLI remain available."
+        confirmLabel="Clear history"
+        destructive
+        onCancel={() => setConfirmingClear(false)}
+        onConfirm={() => {
+          onClearHistory();
+          setConfirmingClear(false);
+        }}
+      />
     </div>
   );
 };
@@ -499,6 +656,12 @@ export const SettingsScreen: React.FC<{
   >([]);
   const [loadingOpenRouterModels, setLoadingOpenRouterModels] = useState(false);
   const [openRouterModelError, setOpenRouterModelError] = useState<string | null>(null);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [endpointInput, setEndpointInput] = useState('');
+  const [savingProviderSettings, setSavingProviderSettings] = useState(false);
+  const [providerSettingsMessage, setProviderSettingsMessage] = useState<string | null>(null);
+  const [providerSettingsError, setProviderSettingsError] = useState<string | null>(null);
+  const [confirmClearCredential, setConfirmClearCredential] = useState(false);
 
   const selectedProvider =
     AI_PROVIDERS.find((p) => p.id === settings.aiProvider) ?? AI_PROVIDERS[0];
@@ -507,6 +670,10 @@ export const SettingsScreen: React.FC<{
     (settings.aiCustomModel || '').trim() ||
     settings.aiModel ||
     selectedProvider.defaultModel;
+
+  useEffect(() => {
+    setEndpointInput(providerStatuses.find((status) => status.id === settings.aiProvider)?.endpoint ?? '');
+  }, [providerStatuses, settings.aiProvider]);
 
   const handleSelectProvider = (providerId: AiProviderId) => {
     const meta = AI_PROVIDERS.find((p) => p.id === providerId) ?? AI_PROVIDERS[0];
@@ -560,6 +727,33 @@ export const SettingsScreen: React.FC<{
       );
     } finally {
       setLoadingOpenRouterModels(false);
+    }
+  };
+
+  const handleSaveProviderSettings = async (clearCredential = false) => {
+    setSavingProviderSettings(true);
+    setProviderSettingsError(null);
+    setProviderSettingsMessage(null);
+    try {
+      await saveAiProviderSettings(settings.aiProvider, {
+        ...(apiKeyInput.trim() ? { apiKey: apiKeyInput.trim() } : {}),
+        ...(selectedProvider.supportsCustomEndpoint
+          ? endpointInput.trim()
+            ? { endpoint: endpointInput.trim() }
+            : { clearEndpoint: true }
+          : {}),
+        ...(clearCredential ? { clearApiKey: true } : {}),
+      });
+      setApiKeyInput('');
+      setProviderSettingsMessage(clearCredential
+        ? 'Saved credential removed. An environment credential, if configured, remains active.'
+        : 'Provider settings saved securely on this computer.');
+      onRefreshAiStatus();
+      setConfirmClearCredential(false);
+    } catch (saveError) {
+      setProviderSettingsError(saveError instanceof Error ? saveError.message : 'Unable to save provider settings.');
+    } finally {
+      setSavingProviderSettings(false);
     }
   };
 
@@ -854,7 +1048,7 @@ export const SettingsScreen: React.FC<{
                       </span>
                       <StatusIndicator
                         tone={ready ? 'installed' : 'available'}
-                        label={ready ? 'Ready' : 'Env Unset'}
+                        label={ready ? 'Ready' : 'Configure'}
                         compact
                       />
                     </div>
@@ -889,11 +1083,7 @@ export const SettingsScreen: React.FC<{
 
                 <StatusIndicator
                   tone={selectedProviderStatus?.configured ? 'installed' : 'attention'}
-                  label={
-                    selectedProviderStatus?.configured
-                      ? `Server secret ${selectedProvider.envVar} active`
-                      : `Set ${selectedProvider.envVar} in Secrets`
-                  }
+                  label={selectedProviderStatus?.configured ? 'Configured' : 'Needs configuration'}
                 />
               </div>
 
@@ -981,6 +1171,52 @@ export const SettingsScreen: React.FC<{
                 )}
               </div>
 
+              <div className="grid gap-3 border-t border-[#262B32] pt-3 sm:grid-cols-2">
+                {selectedProvider.id !== 'ollama' && (
+                  <label className="text-[11px] font-medium text-[#F1F3F5]">
+                    API credential
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={apiKeyInput}
+                      onChange={(event) => setApiKeyInput(event.target.value)}
+                      placeholder={selectedProviderStatus?.credentialStored
+                        ? 'Saved on server; blank keeps the current key'
+                        : selectedProviderStatus?.configured
+                          ? 'Provided by server environment; blank keeps it'
+                          : `Enter ${selectedProvider.envVar}`}
+                      className="mt-1 w-full rounded border border-[#343B43] bg-[#101214] px-3 py-2 font-mono text-[12px] text-[#F1F3F5]"
+                    />
+                    <span className="mt-1 block font-normal text-[#626D78]">Sent only to the local API and encrypted at rest. VLI never returns or writes the key to browser storage.</span>
+                  </label>
+                )}
+                {selectedProvider.supportsCustomEndpoint && (
+                  <label className="text-[11px] font-medium text-[#F1F3F5]">
+                    {selectedProvider.id === 'ollama' ? 'Ollama server URL' : 'OpenAI-compatible API base URL'}
+                    <input
+                      type="url"
+                      value={endpointInput}
+                      onChange={(event) => setEndpointInput(event.target.value)}
+                      placeholder={selectedProvider.id === 'ollama' ? 'http://127.0.0.1:11434' : 'https://api.example.com/v1'}
+                      className="mt-1 w-full rounded border border-[#343B43] bg-[#101214] px-3 py-2 font-mono text-[12px] text-[#F1F3F5]"
+                    />
+                    <span className="mt-1 block font-normal text-[#626D78]">Use an HTTP(S) URL without credentials. Ollama must be reachable from this workstation.</span>
+                  </label>
+                )}
+                <div className="flex flex-wrap items-end gap-2">
+                  <button type="button" disabled={savingProviderSettings} onClick={() => void handleSaveProviderSettings()} className="rounded bg-[#252A30] px-3 py-2 text-[11px] font-medium text-[#F1F3F5] hover:border-[#C7A46A] disabled:opacity-50">
+                    {savingProviderSettings ? 'Saving…' : 'Save provider settings'}
+                  </button>
+                  {selectedProvider.id !== 'ollama' && selectedProviderStatus?.credentialStored && (
+                    <button type="button" disabled={savingProviderSettings} onClick={() => setConfirmClearCredential(true)} className="rounded border border-[#343B43] px-3 py-2 text-[11px] text-[#DF7777] hover:border-[#DF7777] disabled:opacity-50">
+                      Remove saved key
+                    </button>
+                  )}
+                  {providerSettingsMessage && <span role="status" className="text-[11px] text-[#65B9A5]">{providerSettingsMessage}</span>}
+                  {providerSettingsError && <span role="alert" className="text-[11px] text-[#DF7777]">{providerSettingsError}</span>}
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#262B32]">
                 <div className="text-[11.5px] font-mono text-[#626D78]">
                   Active route: /api/ai/assist → {selectedProvider.id} ({effectiveModel})
@@ -1014,6 +1250,15 @@ export const SettingsScreen: React.FC<{
           </section>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmClearCredential}
+        title={`Remove saved ${selectedProvider.name} key?`}
+        description="This removes VLI's encrypted copy of the key from this computer. Environment-based credentials are not changed. AI requests may stop working if no other credential is configured."
+        confirmLabel="Remove saved key"
+        destructive
+        onCancel={() => setConfirmClearCredential(false)}
+        onConfirm={() => void handleSaveProviderSettings(true)}
+      />
     </div>
   );
 };

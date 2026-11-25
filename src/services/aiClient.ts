@@ -6,13 +6,14 @@ import type {
   AiRenameSuggestion,
   AiStackRecommendation,
 } from '../types/studio';
+import { readJsonResponse } from './http';
 
 export async function fetchAiStatus(): Promise<AiProviderStatus[]> {
   const res = await fetch('/api/ai/status');
+  const data = await readJsonResponse<{ providers: AiProviderStatus[]; error?: string }>(res);
   if (!res.ok) {
-    throw new Error('Failed to load AI provider status.');
+    throw new Error(data.error || 'Failed to load AI provider status.');
   }
-  const data = (await res.json()) as { providers: AiProviderStatus[] };
   return data.providers;
 }
 
@@ -20,10 +21,10 @@ export async function fetchOpenRouterModels(): Promise<
   Array<{ id: string; name: string; context_length?: number }>
 > {
   const res = await fetch('/api/ai/openrouter/models');
-  const data = (await res.json()) as {
+  const data = await readJsonResponse<{
     models?: Array<{ id: string; name: string; context_length?: number }>;
     error?: string;
-  };
+  }>(res);
   if (!res.ok || !data.models) {
     throw new Error(data.error || 'Could not retrieve OpenRouter models.');
   }
@@ -39,15 +40,40 @@ export async function testAiProvider(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider, model }),
   });
-  const data = (await res.json()) as {
+  const data = await readJsonResponse<{
     ok: boolean;
     provider: AiProviderId;
     model?: string;
     latencyMs: number;
     reply?: string;
     error?: string;
-  };
+  }>(res);
   return data;
+}
+
+export async function saveAiProviderSettings(
+  provider: AiProviderId,
+  configuration: { apiKey?: string; clearApiKey?: boolean; endpoint?: string; clearEndpoint?: boolean }
+): Promise<{ configured: boolean; endpoint?: string; credentialSource: 'environment' | 'saved' | 'none' }> {
+  const res = await fetch('/api/ai/config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, ...configuration }),
+  });
+  const data = await readJsonResponse<{
+    configured?: boolean;
+    endpoint?: string;
+    credentialSource?: 'environment' | 'saved' | 'none';
+    error?: string;
+  }>(res);
+  if (!res.ok || typeof data.configured !== 'boolean') {
+    throw new Error(data.error || `Unable to save ${provider} settings.`);
+  }
+  return {
+    configured: data.configured,
+    endpoint: data.endpoint,
+    credentialSource: data.credentialSource ?? 'none',
+  };
 }
 
 export async function requestAiArchitect(params: {
@@ -67,13 +93,13 @@ export async function requestAiArchitect(params: {
       payload: { currentConfig: params.currentConfig },
     }),
   });
-  const data = (await res.json()) as {
+  const data = await readJsonResponse<{
     ok?: boolean;
     provider: AiProviderId;
     model: string;
     result?: AiStackRecommendation;
     error?: string;
-  };
+  }>(res);
   if (!res.ok || !data.result) {
     throw new Error(data.error || 'AI Stack Architect request failed.');
   }
@@ -98,13 +124,13 @@ export async function requestAiAudit(params: {
       payload: params.context,
     }),
   });
-  const data = (await res.json()) as {
+  const data = await readJsonResponse<{
     ok?: boolean;
     provider: AiProviderId;
     model: string;
     result?: AiDiagnosticResponse;
     error?: string;
-  };
+  }>(res);
   if (!res.ok || !data.result) {
     throw new Error(data.error || 'AI analysis failed.');
   }
@@ -134,13 +160,13 @@ export async function requestAiRenameAdvice(params: {
       },
     }),
   });
-  const data = (await res.json()) as {
+  const data = await readJsonResponse<{
     ok?: boolean;
     provider: AiProviderId;
     model: string;
     result?: AiRenameSuggestion;
     error?: string;
-  };
+  }>(res);
   if (!res.ok || !data.result) {
     throw new Error(data.error || 'AI rename advisor failed.');
   }

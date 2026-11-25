@@ -6,6 +6,7 @@ import type {
   LanguageId,
   PackageManagerId,
   ProjectType,
+  ProjectTechnologyConfig,
   ViteUiFramework,
 } from './studio';
 
@@ -26,6 +27,8 @@ export interface ProjectInstallInput {
   viteUiFramework: ViteUiFramework;
   language: LanguageId;
   packageManager: PackageManagerId;
+  initGit: boolean;
+  technology: ProjectTechnologyConfig;
   packages: ProjectInstallPackage[];
 }
 
@@ -47,6 +50,7 @@ export interface ProjectInstallJob {
   apiFramework: ApiFrameworkId;
   framework: FrameworkId;
   packageManager: PackageManagerId;
+  technology: ProjectTechnologyConfig;
   projectPath: string;
   frontendPath?: string;
   apiPath?: string;

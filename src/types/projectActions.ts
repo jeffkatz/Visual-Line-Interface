@@ -1,8 +1,23 @@
-import type { FrameworkId } from './studio';
+import type {
+  FrameworkId,
+  FullStackLayout,
+  PackageManagerId,
+  ProjectTechnologyConfig,
+  ProjectType,
+} from './studio';
 
 export type ProjectRunTarget = 'frontend' | 'api';
 export type ProjectRunStatus = 'running' | 'stopped' | 'failed';
-export type EditorId = 'vscode' | 'antigravity' | 'codex' | 'opencode' | 'cursor';
+export type EditorId =
+  | 'vscode'
+  | 'visual-studio'
+  | 'antigravity'
+  | 'codex'
+  | 'opencode'
+  | 'cursor'
+  | 'webstorm'
+  | 'idea'
+  | 'zed';
 
 export interface ProjectRunInput {
   directory: string;
@@ -28,3 +43,44 @@ export interface ProjectEditor {
   label: string;
   available: boolean;
 }
+
+export interface InstalledProject {
+  id: string;
+  projectName: string;
+  projectType: ProjectType;
+  fullStackLayout?: FullStackLayout;
+  framework: FrameworkId;
+  packageManager?: PackageManagerId;
+  technology?: ProjectTechnologyConfig;
+  directory: string;
+  frontendPath?: string;
+  apiPath?: string;
+  workspacePath?: string;
+  origin: 'created' | 'imported';
+  addedAt: string;
+}
+
+export interface GitRemote {
+  name: string;
+  url: string;
+}
+
+export interface GitStatus {
+  isRepository: boolean;
+  root?: string;
+  branch?: string;
+  staged: string[];
+  modified: string[];
+  untracked: string[];
+  remotes: GitRemote[];
+}
+
+export interface GitSigningConfig {
+  name: string;
+  email: string;
+  enabled: boolean;
+  format: 'openpgp' | 'ssh';
+  signingKey?: string;
+}
+
+export type GitCredentialHelper = 'manager' | 'osxkeychain' | 'libsecret' | 'cache';

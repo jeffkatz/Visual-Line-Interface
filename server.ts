@@ -45,10 +45,25 @@ import {
   listProjectEditors,
   listProjectRuns,
   openProjectInEditor,
+  openProjectFolder,
   startProjectRun,
   stopProjectRun,
   validateProjectRunInput,
 } from './server/projectActions.ts';
+import { projectRegistry } from './server/projectRegistry.ts';
+import {
+  commitGitChanges,
+  configureGitSigning,
+  connectGitRemote,
+  disconnectGitRemote,
+  getGitStatus,
+  initializeGitRepository,
+  pullGitChanges,
+  pushGitChanges,
+  saveGitAuthentication,
+  stageGitChanges,
+} from './server/gitManager.ts';
+import { aiProviderSettings } from './server/aiProviderSettings.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -63,16 +78,17 @@ interface ProviderConfig {
   name: string;
   envVar: string;
   defaultModel: string;
+  defaultEndpoint?: string;
 }
 
 const PROVIDERS: ProviderConfig[] = [
-  { id: 'openrouter', name: 'OpenRouter', envVar: 'OPENROUTER_API_KEY', defaultModel: 'google/gemini-2.5-flash' },
+  { id: 'openrouter', name: 'OpenRouter', envVar: 'OPENROUTER_API_KEY', defaultModel: 'google/gemini-2.5-flash', defaultEndpoint: 'https://openrouter.ai/api/v1' },
   { id: 'gemini', name: 'Google Gemini', envVar: 'GEMINI_API_KEY', defaultModel: 'gemini-4-hydrogen' },
-  { id: 'openai', name: 'OpenAI', envVar: 'OPENAI_API_KEY', defaultModel: 'gpt-4o-mini' },
+  { id: 'openai', name: 'OpenAI', envVar: 'OPENAI_API_KEY', defaultModel: 'gpt-4o-mini', defaultEndpoint: 'https://api.openai.com/v1' },
   { id: 'anthropic', name: 'Anthropic Claude', envVar: 'ANTHROPIC_API_KEY', defaultModel: 'claude-3-7-sonnet-20250219' },
-  { id: 'groq', name: 'Groq Cloud', envVar: 'GROQ_API_KEY', defaultModel: 'llama-3.3-70b-versatile' },
-  { id: 'mistral', name: 'Mistral AI', envVar: 'MISTRAL_API_KEY', defaultModel: 'codestral-latest' },
-  { id: 'ollama', name: 'Ollama (Local)', envVar: 'OLLAMA_BASE_URL', defaultModel: 'qwen2.5-coder:7b' },
+  { id: 'groq', name: 'Groq Cloud', envVar: 'GROQ_API_KEY', defaultModel: 'llama-3.3-70b-versatile', defaultEndpoint: 'https://api.groq.com/openai/v1' },
+  { id: 'mistral', name: 'Mistral AI', envVar: 'MISTRAL_API_KEY', defaultModel: 'codestral-latest', defaultEndpoint: 'https://api.mistral.ai/v1' },
+  { id: 'ollama', name: 'Ollama (Local)', envVar: 'OLLAMA_BASE_URL', defaultModel: 'qwen2.5-coder:7b', defaultEndpoint: 'http://127.0.0.1:11434' },
 ];
 
 const VALID_FRAMEWORKS = new Set<FrameworkId>(['vite', 'nextjs', 'astro', 'vue', 'sveltekit', 'angular']);
@@ -118,35 +134,70 @@ function requireLocalBrowserRequest(req: Request, res: Response, next: (err?: un
   next();
 }
 
-function getOllamaBaseUrl(): string | null {
-  const raw = (process.env.OLLAMA_BASE_URL || '').trim();
-  if (!raw) return null;
+function normalizeProviderEndpoint(raw: string): string {
   try {
     const parsed = new URL(raw);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    if (
+      (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash
+    ) {
+      throw new Error();
+    }
     return parsed.origin + parsed.pathname.replace(/\/+$/, '');
   } catch {
-    return null;
+    throw new Error('Use an HTTP(S) API base URL without embedded credentials or query parameters.');
   }
 }
 
-function isProviderConfigured(providerId: AiProviderId): boolean {
-  if (providerId === 'ollama') {
-    return getOllamaBaseUrl() !== null;
-  }
+async function getProviderRuntimeConfig(providerId: AiProviderId): Promise<{
+  apiKey: string;
+  endpoint?: string;
+  configured: boolean;
+  credentialSource: 'environment' | 'saved' | 'none';
+}> {
   const meta = PROVIDERS.find((p) => p.id === providerId);
-  if (!meta) return false;
-  const val = (process.env[meta.envVar] || '').trim();
-  return Boolean(val && !val.startsWith('MY_'));
+  if (!meta) throw new Error(`Unsupported AI provider: ${providerId}`);
+  const saved = await aiProviderSettings.get(providerId);
+  const envValue = (process.env[meta.envVar] || '').trim();
+  const envUsable = Boolean(envValue && !envValue.startsWith('MY_'));
+  const apiKey = providerId === 'ollama'
+    ? ''
+    : envUsable ? envValue : saved.apiKey ?? '';
+  const envEndpoint = providerId === 'ollama' ? (process.env.OLLAMA_BASE_URL || '').trim() : '';
+  const explicitEndpoint = envEndpoint || saved.endpoint;
+  const endpointValue = explicitEndpoint || meta.defaultEndpoint;
+  const endpoint = endpointValue ? normalizeProviderEndpoint(endpointValue) : undefined;
+  const configured = providerId === 'ollama' ? Boolean(explicitEndpoint) : Boolean(apiKey);
+  return {
+    apiKey,
+    endpoint,
+    configured,
+    credentialSource: providerId === 'ollama'
+      ? 'none'
+      : envUsable ? 'environment' : apiKey ? 'saved' : 'none',
+  };
 }
 
-function getProviderStatuses(): AiProviderStatus[] {
-  return PROVIDERS.map((p) => ({
-    id: p.id,
-    name: p.name,
-    envVar: p.envVar,
-    configured: isProviderConfigured(p.id),
-    defaultModel: p.defaultModel,
+async function getProviderStatuses(): Promise<AiProviderStatus[]> {
+  return Promise.all(PROVIDERS.map(async (provider) => {
+    const config = await getProviderRuntimeConfig(provider.id);
+    const saved = await aiProviderSettings.get(provider.id);
+    const environmentEndpoint = provider.id === 'ollama'
+      ? (process.env.OLLAMA_BASE_URL || '').trim()
+      : '';
+    return {
+      id: provider.id,
+      name: provider.name,
+      envVar: provider.envVar,
+      configured: config.configured,
+      defaultModel: provider.defaultModel,
+      endpoint: saved.endpoint || (environmentEndpoint ? normalizeProviderEndpoint(environmentEndpoint) : undefined),
+      credentialSource: config.credentialSource,
+      credentialStored: Boolean(saved.apiKey),
+    };
   }));
 }
 
@@ -218,16 +269,16 @@ async function runProviderCompletion(req: CompletionRequest): Promise<{ text: st
     throw new Error(`Unsupported AI provider: ${req.provider}`);
   }
   const model = (req.model || providerMeta.defaultModel).trim().slice(0, 140);
-
-  if (!isProviderConfigured(req.provider)) {
+  const providerSettings = await getProviderRuntimeConfig(req.provider);
+  if (!providerSettings.configured) {
     throw new Error(
-      `${providerMeta.name} is not configured on the server. Set ${providerMeta.envVar} in Settings -> Secrets or .env.`
+      `${providerMeta.name} is not configured. Add its credential in Settings or set ${providerMeta.envVar} in the server environment.`
     );
   }
 
   if (req.provider === 'gemini') {
     const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: providerSettings.apiKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
@@ -282,12 +333,11 @@ async function runProviderCompletion(req: CompletionRequest): Promise<{ text: st
   }
 
   if (req.provider === 'anthropic') {
-    const apiKey = (process.env.ANTHROPIC_API_KEY || '').trim();
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-api-key': apiKey,
+        'x-api-key': providerSettings.apiKey,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
@@ -311,7 +361,7 @@ async function runProviderCompletion(req: CompletionRequest): Promise<{ text: st
   }
 
   if (req.provider === 'ollama') {
-    const baseUrl = getOllamaBaseUrl();
+    const baseUrl = providerSettings.endpoint;
     if (!baseUrl) {
       throw new Error('OLLAMA_BASE_URL is not configured or invalid.');
     }
@@ -342,29 +392,13 @@ async function runProviderCompletion(req: CompletionRequest): Promise<{ text: st
   }
 
   // OpenAI-compatible providers: OpenRouter, OpenAI, Groq, Mistral
-  const endpointMap: Record<'openrouter' | 'openai' | 'groq' | 'mistral', { url: string; key: string }> = {
-    openrouter: {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: (process.env.OPENROUTER_API_KEY || '').trim(),
-    },
-    openai: {
-      url: 'https://api.openai.com/v1/chat/completions',
-      key: (process.env.OPENAI_API_KEY || '').trim(),
-    },
-    groq: {
-      url: 'https://api.groq.com/openai/v1/chat/completions',
-      key: (process.env.GROQ_API_KEY || '').trim(),
-    },
-    mistral: {
-      url: 'https://api.mistral.ai/v1/chat/completions',
-      key: (process.env.MISTRAL_API_KEY || '').trim(),
-    },
-  };
-
-  const target = endpointMap[req.provider];
+  if (!providerSettings.endpoint) {
+    throw new Error(`${providerMeta.name} does not have a compatible API endpoint configured.`);
+  }
+  const targetUrl = `${providerSettings.endpoint}/chat/completions`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${target.key}`,
+    Authorization: `Bearer ${providerSettings.apiKey}`,
   };
   if (req.provider === 'openrouter') {
     headers['HTTP-Referer'] = process.env.APP_URL || `http://localhost:${PORT}`;
@@ -383,7 +417,7 @@ async function runProviderCompletion(req: CompletionRequest): Promise<{ text: st
     if (withJsonFormat) {
       body.response_format = { type: 'json_object' };
     }
-    const res = await fetch(target.url, {
+    const res = await fetch(targetUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
@@ -737,6 +771,7 @@ async function startServer() {
   });
 
   app.use(['/api/local', '/api/projects'], requireLocalBrowserRequest);
+  app.use('/api/ai/config', requireLocalBrowserRequest);
 
   app.post('/api/local/choose-directory', async (_req: Request, res: Response) => {
     try {
@@ -756,6 +791,42 @@ async function startServer() {
     } catch (error) {
       res.status(error instanceof InstallerBusyError ? 409 : 400).json({
         error: error instanceof Error ? error.message : 'Unable to start project installation.',
+      });
+    }
+  });
+
+  app.get('/api/projects', async (_req: Request, res: Response) => {
+    try {
+      res.json({ projects: await projectRegistry.list() });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Unable to load installed projects.',
+      });
+    }
+  });
+
+  app.post('/api/projects/import', async (req: Request, res: Response) => {
+    try {
+      const project = await projectRegistry.importDirectory(req.body?.directory);
+      res.status(201).json({ project });
+    } catch (error) {
+      res.status(400).json({
+        error: error instanceof Error ? error.message : 'Unable to import this project folder.',
+      });
+    }
+  });
+
+  app.delete('/api/projects/:id', async (req: Request, res: Response) => {
+    try {
+      const removed = await projectRegistry.remove(req.params.id);
+      if (!removed) {
+        res.status(404).json({ error: 'Installed project was not found.' });
+        return;
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Unable to remove the project record.',
       });
     }
   });
@@ -834,6 +905,107 @@ async function startServer() {
         error: error instanceof Error ? error.message : 'Unable to open project in editor.',
       });
     }
+  });
+
+  app.post('/api/projects/open-folder', async (req: Request, res: Response) => {
+        try {
+          await openProjectFolder(req.body);
+          res.json({ ok: true });
+        } catch (error) {
+          res.status(400).json({
+            error: error instanceof Error ? error.message : 'Unable to open the project folder.',
+          });
+        }
+      });
+
+  app.post('/api/projects/git/status', async (req: Request, res: Response) => {
+        try {
+          res.json({ status: await getGitStatus(req.body?.directory) });
+        } catch (error) {
+          res.status(400).json({ error: error instanceof Error ? error.message : 'Unable to read Git status.' });
+        }
+      });
+
+  app.post('/api/projects/git/init', async (req: Request, res: Response) => {
+        try {
+          res.json({ status: await initializeGitRepository(req.body?.directory) });
+        } catch (error) {
+          res.status(400).json({ error: error instanceof Error ? error.message : 'Unable to initialize Git.' });
+        }
+      });
+
+  app.post('/api/projects/git/remote', async (req: Request, res: Response) => {
+        try {
+          res.json({ status: await connectGitRemote(req.body?.directory, req.body?.url) });
+        } catch (error) {
+          res.status(400).json({ error: error instanceof Error ? error.message : 'Unable to connect Git remote.' });
+        }
+      });
+
+  app.post('/api/projects/git/disconnect', async (req: Request, res: Response) => {
+        try {
+          res.json({ status: await disconnectGitRemote(req.body?.directory) });
+        } catch (error) {
+          res.status(400).json({ error: error instanceof Error ? error.message : 'Unable to disconnect Git remote.' });
+        }
+      });
+
+  app.post('/api/projects/git/authentication', async (req: Request, res: Response) => {
+        try {
+          res.json({
+            status: await saveGitAuthentication(
+              req.body?.directory,
+              req.body?.username,
+              req.body?.token,
+              req.body?.helper
+            ),
+          });
+        } catch (error) {
+          res.status(400).json({
+            error: error instanceof Error ? error.message : 'Unable to configure Git authentication.',
+          });
+        }
+      });
+
+  app.post('/api/projects/git/stage', async (req: Request, res: Response) => {
+        try {
+          res.json({ status: await stageGitChanges(req.body?.directory) });
+        } catch (error) {
+          res.status(400).json({ error: error instanceof Error ? error.message : 'Unable to stage Git changes.' });
+        }
+      });
+
+  app.post('/api/projects/git/commit', async (req: Request, res: Response) => {
+        try {
+          res.json({ status: await commitGitChanges(req.body?.directory, req.body?.message) });
+        } catch (error) {
+          res.status(400).json({ error: error instanceof Error ? error.message : 'Unable to commit Git changes.' });
+        }
+      });
+
+  app.post('/api/projects/git/pull', async (req: Request, res: Response) => {
+        try {
+          res.json({ status: await pullGitChanges(req.body?.directory) });
+        } catch (error) {
+          res.status(400).json({ error: error instanceof Error ? error.message : 'Unable to pull Git changes.' });
+        }
+      });
+
+  app.post('/api/projects/git/push', async (req: Request, res: Response) => {
+        try {
+          res.json({ status: await pushGitChanges(req.body?.directory) });
+        } catch (error) {
+          res.status(400).json({ error: error instanceof Error ? error.message : 'Unable to push Git changes.' });
+        }
+      });
+
+  app.post('/api/projects/git/signing', async (req: Request, res: Response) => {
+        try {
+          const result = await configureGitSigning(req.body?.directory, req.body?.configuration);
+          res.json({ configuration: { name: result.name, email: result.email, enabled: result.enabled, format: result.format }, status: result.status });
+        } catch (error) {
+          res.status(400).json({ error: error instanceof Error ? error.message : 'Unable to configure Git signing.' });
+        }
   });
 
   app.get('/api/system/probe', async (req: Request, res: Response) => {
@@ -1034,8 +1206,75 @@ async function startServer() {
     }
   });
 
-  app.get('/api/ai/status', (_req: Request, res: Response) => {
-    res.json({ providers: getProviderStatuses() });
+  app.get('/api/ai/status', async (_req: Request, res: Response) => {
+    try {
+      res.json({ providers: await getProviderStatuses() });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to load AI provider settings.' });
+    }
+  });
+
+  app.put('/api/ai/config', async (req: Request, res: Response) => {
+    const body = req.body as {
+      provider?: unknown;
+      apiKey?: unknown;
+      clearApiKey?: unknown;
+      endpoint?: unknown;
+      clearEndpoint?: unknown;
+    };
+    const provider = PROVIDERS.find((item) => item.id === body?.provider);
+    if (!provider) {
+      res.status(400).json({ error: 'Choose a supported AI provider.' });
+      return;
+    }
+    const supportsCustomEndpoint = ['openrouter', 'openai', 'groq', 'mistral', 'ollama'].includes(provider.id);
+    if (body.apiKey !== undefined && (
+      typeof body.apiKey !== 'string' ||
+      body.apiKey.length > 8192 ||
+      /[\r\n]/.test(body.apiKey)
+    )) {
+      res.status(400).json({ error: 'API credentials must be a single line of at most 8192 characters.' });
+      return;
+    }
+    if (body.clearApiKey !== undefined && typeof body.clearApiKey !== 'boolean') {
+      res.status(400).json({ error: 'Invalid credential removal request.' });
+      return;
+    }
+    if (body.endpoint !== undefined && typeof body.endpoint !== 'string') {
+      res.status(400).json({ error: 'API endpoint must be a URL.' });
+      return;
+    }
+    if ((body.endpoint !== undefined || body.clearEndpoint) && !supportsCustomEndpoint) {
+      res.status(400).json({ error: 'This provider uses its official API endpoint.' });
+      return;
+    }
+
+    try {
+      const apiKey = typeof body.apiKey === 'string' ? body.apiKey.trim() : undefined;
+      const endpoint = typeof body.endpoint === 'string' && body.endpoint.trim()
+        ? normalizeProviderEndpoint(body.endpoint.trim())
+        : undefined;
+      const clearEndpoint = body.clearEndpoint === true || body.endpoint === '';
+      if (body.clearEndpoint !== undefined && typeof body.clearEndpoint !== 'boolean') {
+        throw new Error('Invalid endpoint removal request.');
+      }
+      const saved = await aiProviderSettings.update(provider.id, {
+        ...(apiKey !== undefined ? { apiKey } : {}),
+        clearApiKey: body.clearApiKey === true,
+        ...(endpoint ? { endpoint } : {}),
+        clearEndpoint,
+      });
+      const current = await getProviderRuntimeConfig(provider.id);
+      const providerStatus = (await getProviderStatuses()).find((item) => item.id === provider.id);
+      res.json({
+        configured: current.configured,
+        endpoint: providerStatus?.endpoint,
+        credentialSource: current.credentialSource,
+        credentialStored: Boolean(saved.apiKey),
+      });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Unable to save AI provider settings.' });
+    }
   });
 
   app.get('/api/ai/openrouter/models', async (_req: Request, res: Response) => {
@@ -1046,12 +1285,13 @@ async function startServer() {
         return;
       }
 
+      const settings = await getProviderRuntimeConfig('openrouter');
       const headers: Record<string, string> = {};
-      const key = (process.env.OPENROUTER_API_KEY || '').trim();
-      if (key) {
-        headers.Authorization = `Bearer ${key}`;
+      if (settings.apiKey) {
+        headers.Authorization = `Bearer ${settings.apiKey}`;
       }
-      const upstream = await fetch('https://openrouter.ai/api/v1/models', {
+      if (!settings.endpoint) throw new Error('OpenRouter API endpoint is not configured.');
+      const upstream = await fetch(`${settings.endpoint}/models`, {
         headers,
         signal: AbortSignal.timeout(15000),
       });
@@ -1362,6 +1602,10 @@ Only include originalPath values from the input files list. Target paths must be
         error: msg,
       });
     }
+  });
+
+  app.use('/api', (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'API route not found.' });
   });
 
   // Dev Vite middleware or Prod static assets

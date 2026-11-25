@@ -21,24 +21,26 @@ Every visual control maps directly to deterministic CLI flags, manifests, and pr
 
 ## 1. Interface Anatomy
 
-Visual Line Interface places **Overview**, **Create New Project**, and **Installed projects** at the top of the primary navigation. Less frequently used tools are grouped under **More tools**.
+Visual Line Interface exposes **Overview**, **Create New Project**, **Installed Projects**, **Runtime Manager**, **Tech Stack**, **History**, and **Settings** as peers in the primary navigation.
 
 ```text
 ┌──────────────────┬─────────────────────────────────────────┬──────────────────────┐
 │  LEFT SIDEBAR    │            MAIN WORKSPACE               │  RIGHT INSPECTOR     │
 │                  │                                         │  (Collapsible)       │
 │ • Overview       │ • Frontend, API, or full-stack setup     │ • Local host status  │
-│ • Create New     │ • Framework, destination, packages      │ • Advanced tools     │
-│ • Installed      │ • Install progress and project actions  │   under More tools  │
-│ • More tools     │                                         │                      │
+│ • Create New     │ • Framework, destination, packages      │ • Selected settings │
+│ • Installed      │ • Install progress and project actions  │                      │
+│ • Runtime/Stack  │                                         │                      │
+│ • History        │                                         │                      │
+│ • Settings       │                                         │                      │
 └──────────────────┴─────────────────────────────────────────┴──────────────────────┘
 ```
 
-- **Left Sidebar**: Keeps Overview, project creation, and installed-project actions visible; opens secondary workspaces from **More tools**.
+- **Left Sidebar**: Provides direct access to every workspace without dropdown navigation.
 - **Main Workspace**: The project setup flow is the default screen. Advanced previews and settings remain available separately.
-- **Local execution**: A local Node.js server launches allowlisted npm CLI operations. Browser JavaScript does not receive arbitrary shell access.
+- **Local execution**: A local Node.js server launches supported package-manager and Git operations. Browser JavaScript does not receive arbitrary shell access.
 
-> **Scope note:** Real installation currently uses npm and creates projects with official framework scaffolds. Optional packages are installed at their pinned versions; bulk-rename/configuration previews are not applied by the real installer.
+> **Scope note:** Project creation uses official framework scaffolds and the selected package manager. Selected tool, test, port, and TypeScript settings are applied during installation; file-renaming previews remain separate from the installer.
 
 ---
 
@@ -106,10 +108,10 @@ These rename operations are not applied by the real local installer yet; the off
 | :--- | :--- |
 | **Overview** | Runtime readiness, recommended Tech Stacks, project setup entry points, and recent installations. |
 | **Create New Project** | Four-step wizard for frontend, API, and full-stack scaffolds; Angular and other frontend frameworks; optional PostgreSQL, MongoDB, MySQL, SQLite, or Redis driver integrations and environment templates. Database services are not provisioned. |
-| **Installed projects** | Interactive local project list with run/stop controls, free-port URLs, and available editor launch options. |
+| **Installed Projects** | Persistent list with import, run/stop, VS Code or detected IDE launch, file-manager open, and Git status/stage/commit/pull/push controls. Removing an entry does not delete project files. |
 | **Runtime Manager** | Probes live host OS, CPU arch, and `PATH` binaries (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`). Node updates require nvm, fnm, or Volta; Deno accepts pinned versions; Bun supports stable/canary updates. |
-| **Tech Stack** | Browse and apply recommended combinations such as MERN, PERN, and MEAN. |
-| **Settings** | Configure theme mode, accent, fonts, text size, workstation defaults, AI providers, and environment diagnostics. Diagnostics run `/api/system/probe` for runtime, package manager, Git CLI, and port availability. |
+| **Tech Stack** | Browse recommended combinations such as MERN, PERN, and MEAN. Applying a preset selects its technologies and carries those settings into project creation. |
+| **Settings** | Configure theme, workstation defaults, AI providers, credentials, models, and compatible endpoints; test provider connections. Credentials are stored encrypted by the local server. Diagnostics run `/api/system/probe`. |
 
 ---
 
@@ -123,7 +125,7 @@ These rename operations are not applied by the real local installer yet; the off
 
 ## 7. Connecting Optional AI Providers
 
-All AI credentials are configured **strictly on the server** via environment variables (never entered or stored in the browser).
+AI providers can use environment credentials or credentials saved through Settings. Saved keys are encrypted by the local server and are not returned to the browser or written to VLI logs.
 
 | Provider | Environment Variable | Default Model | Notes |
 | :--- | :--- | :--- | :--- |
@@ -136,9 +138,9 @@ All AI credentials are configured **strictly on the server** via environment var
 | **Ollama (Local)** | `OLLAMA_BASE_URL` | `qwen2.5-coder:7b` | Local inference server (e.g. `http://127.0.0.1:11434`). |
 
 ### Setup Steps
-1. Set the desired key(s) in your environment (`.env` locally or **Settings → Secrets** in AI Studio).
-2. Open **Settings** inside Visual Line Interface and click **Refresh Status**.
-3. Select a configured provider (`Ready`), pick or fetch a model, and click **Test Provider Connection** to verify round-trip latency.
+1. Open **Settings**, choose a provider, and enter its API key and compatible endpoint if needed; alternatively configure the provider in the server environment.
+2. Save the settings and refresh provider status.
+3. Select the model and use **Test Provider Connection** to verify access.
 
 ---
 
@@ -146,7 +148,7 @@ All AI credentials are configured **strictly on the server** via environment var
 
 - **Can I use Visual Line Interface without any API keys?**
   Yes. Project scaffolding and npm package installation do not require AI credentials.
-- **Why does OpenRouter or another provider show `Env Unset`?**
-  The server did not detect a non-placeholder value for that provider's environment variable. Add the variable to your server environment / Secrets panel and click **Refresh Status** in Settings.
+- **Why does an AI provider show as unconfigured?**
+  No saved credential or recognized environment credential is available for that provider. Configure it in Settings or in the server environment, then refresh provider status.
 - **What happens if a connected provider is temporarily unavailable (e.g. HTTP 503 or timeout)?**
   The Stack Advisor and Prompt Studio catch the error, display a clear banner, and automatically fall back to the local deterministic heuristic and blueprint engines so your workflow continues uninterrupted.

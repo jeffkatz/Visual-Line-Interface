@@ -14,6 +14,7 @@ import type {
   FullStackLayout,
   LanguageId,
   PackageManagerInfo,
+  PackageManagerId,
   ProjectConfig,
   ProjectType,
   StudioPackage,
@@ -58,7 +59,7 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
   const reportedJobRef = useRef<string | null>(null);
 
   const selectedFramework = FRAMEWORKS.find((item) => item.id === config.framework) ?? FRAMEWORKS[0];
-  const selectedManager = packageManagers.find((item) => item.id === 'npm');
+  const selectedManager = packageManagers.find((item) => item.id === config.packageManager);
   const isProjectNameValid = /^[a-z0-9][a-z0-9._-]{0,99}$/i.test(config.projectName.trim());
   const availablePackages = useMemo(
     () =>
@@ -459,25 +460,32 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
                     : `Choose compatible add-ons for ${selectedFramework.name}. You can change these later in the project.`}
                 </p>
               </div>
-              <div className="flex items-center justify-between rounded border border-[#2D333B] bg-[#171A1E] p-4">
+              <div className="rounded border border-[#2D333B] bg-[#171A1E] p-4">
                 <div>
-                  <div className="text-[13px] font-medium text-[#F1F3F5]">npm</div>
-                  <div className="mt-0.5 font-mono text-[10px] text-[#626D78]">
-                    {selectedManager?.status === 'installed'
-                      ? selectedManager.version
-                        ? `v${selectedManager.version}`
-                        : 'Installed'
-                      : 'Not detected'}
-                  </div>
+                  <div className="mb-2 text-[12px] font-medium text-[#F1F3F5]">Dependency package manager</div>
+                  <SegmentedSelector<PackageManagerId>
+                    ariaLabel="Project dependency package manager"
+                    value={config.packageManager}
+                    onChange={(packageManager) => onUpdateConfig({ packageManager })}
+                    fullWidth
+                    options={packageManagers.map((manager) => ({
+                      value: manager.id,
+                      label: manager.name,
+                      sublabel: manager.status === 'installed' ? (manager.version || 'Ready') : 'Missing',
+                      disabled: manager.status !== 'installed',
+                    }))}
+                  />
                 </div>
-                <span className={`text-[11px] ${selectedManager?.status === 'installed' ? 'text-[#65B9A5]' : 'text-[#DF7777]'}`}>
-                  {selectedManager?.status === 'installed' ? 'Ready to install' : 'Node.js + npm required'}
+                <span className={`mt-2 block text-[11px] ${selectedManager?.status === 'installed' ? 'text-[#65B9A5]' : 'text-[#DF7777]'}`}>
+                  {selectedManager?.status === 'installed'
+                    ? `${selectedManager.name} ${selectedManager.version ? `v${selectedManager.version}` : 'is ready'}`
+                    : `Install ${selectedManager?.name ?? config.packageManager} and refresh system detection.`}
                 </span>
               </div>
 
               {config.projectType === 'api' ? (
                 <div className="rounded border border-[#2D333B] bg-[#171A1E] p-4 text-[12px] text-[#929BA5]">
-                  The API starter is ready to run with <span className="font-mono text-[#F1F3F5]">npm run dev</span>.
+                  The API starter is ready to run with <span className="font-mono text-[#F1F3F5]">{config.packageManager} run dev</span>.
                 </div>
               ) : (
               <div className="rounded border border-[#2D333B] bg-[#171A1E]">
@@ -514,9 +522,13 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
               )}
               {!selectedManager || selectedManager.status !== 'installed' ? (
                 <div role="alert" className="rounded border border-[#DF7777]/50 bg-[#DF7777]/5 p-3 text-[12px] text-[#DF7777]">
-                  Install Node.js with npm on this computer, then refresh system detection before continuing.
+                  The selected package manager is not available. Install it on this computer, or choose another detected manager.
                 </div>
               ) : null}
+              <label className="flex items-start gap-2 rounded border border-[#2D333B] bg-[#171A1E] p-3 text-[11px] text-[#929BA5]">
+                <input type="checkbox" checked={config.initGit} onChange={(event) => onUpdateConfig({ initGit: event.target.checked })} className="mt-0.5 accent-[#C7A46A]" />
+                <span><span className="block font-medium text-[#F1F3F5]">Initialize Git repository after install</span>When enabled, VLI runs Git locally in the project (and in both folders for a separate full-stack layout). No credentials or remote are added.</span>
+              </label>
             </section>
           )}
 
@@ -533,7 +545,7 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
               <div className="grid gap-3 rounded border border-[#2D333B] bg-[#171A1E] p-4 sm:grid-cols-2">
                 <div><div className="text-[11px] text-[#626D78]">Project type</div><div className="mt-1 text-[13px] capitalize text-[#F1F3F5]">{config.projectType}</div></div>
                 <div><div className="text-[11px] text-[#626D78]">Stack</div><div className="mt-1 text-[13px] text-[#F1F3F5]">{config.projectType === 'api' ? 'Express API · TypeScript' : `${selectedFramework.name} · ${config.language}${config.projectType === 'fullstack' ? ' + Express API' : ''}`}</div></div>
-                <div><div className="text-[11px] text-[#626D78]">Package manager</div><div className="mt-1 text-[13px] text-[#F1F3F5]">npm</div></div>
+                <div><div className="text-[11px] text-[#626D78]">Package manager</div><div className="mt-1 text-[13px] text-[#F1F3F5]">{config.packageManager}</div></div>
                 <div><div className="text-[11px] text-[#626D78]">Databases</div><div className="mt-1 text-[13px] text-[#F1F3F5]">{config.databases.length ? DATABASE_OPTIONS.filter((database) => config.databases.includes(database.id)).map((database) => database.name).join(', ') : 'None selected'}</div></div>
                 <div className="sm:col-span-2"><div className="text-[11px] text-[#626D78]">Destination</div><div className="mt-1 break-all font-mono text-[12px] text-[#F1F3F5]">{frontendProjectPath}</div>{config.projectType === 'fullstack' && <div className="mt-1 break-all font-mono text-[12px] text-[#F1F3F5]">{apiProjectPath}</div>}</div>
                 <div className="sm:col-span-2"><div className="text-[11px] text-[#626D78]">Selected packages</div><div className="mt-1 text-[12px] text-[#F1F3F5]">{selectedPackages.length ? selectedPackages.map((pkg) => `${pkg.npmName}@${pkg.version}`).join(', ') : 'None'}</div></div>

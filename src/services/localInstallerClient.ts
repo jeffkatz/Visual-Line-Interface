@@ -1,8 +1,9 @@
 import type { ProjectConfig, StudioPackage } from '../types/studio';
 import type { ProjectInstallInput, ProjectInstallJob } from '../types/localInstaller';
+import { readJsonResponse } from './http';
 
 async function readJson<T>(response: Response): Promise<T> {
-  const data = (await response.json()) as T & { error?: string };
+  const data = (await readJsonResponse<T & { error?: string }>(response));
   if (!response.ok) {
     throw new Error(data.error || `Local project action failed (HTTP ${response.status}).`);
   }
@@ -38,7 +39,21 @@ export async function startProjectInstall(
     framework: config.framework,
     viteUiFramework: config.viteUiFramework,
     language: config.language,
-    packageManager: 'npm',
+    packageManager: config.packageManager,
+    initGit: config.initGit,
+    technology: {
+      compiler: config.compiler,
+      devTools: config.devTools,
+      styling: config.styling,
+      testing: config.testing,
+      runtime: config.runtime,
+      runtimeVersion: config.runtimeVersion,
+      strictTypeScript: config.strictTypeScript,
+      tailwindVersion: config.tailwindVersion,
+      devPort: config.devPort,
+      previewPort: config.previewPort,
+      selectedPackageIds: config.selectedPackageIds,
+    },
     packages: selectedPackages,
   };
   const response = await fetch('/api/projects/install', {

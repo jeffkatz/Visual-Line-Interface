@@ -1,12 +1,13 @@
 import { spawn, execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
+import { existsSync } from 'node:fs';
 import { constants as fsConstants } from 'node:fs';
 import fs from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import type { FrameworkId } from '../src/types/studio.ts';
+import type { FrameworkId, PackageManagerId } from '../src/types/studio.ts';
 import type {
   EditorId,
   ProjectEditor,
@@ -18,10 +19,14 @@ import { resolveNpmCliPath } from './localInstaller.ts';
 const execFileAsync = promisify(execFile);
 const EDITOR_CATALOG: Array<{ id: EditorId; label: string; command: string }> = [
   { id: 'vscode', label: 'Visual Studio Code', command: 'code' },
+  { id: 'visual-studio', label: 'Visual Studio', command: 'devenv' },
   { id: 'antigravity', label: 'Antigravity', command: 'antigravity' },
   { id: 'codex', label: 'Codex', command: 'codex' },
   { id: 'opencode', label: 'OpenCode', command: 'opencode' },
   { id: 'cursor', label: 'Cursor', command: 'cursor' },
+  { id: 'webstorm', label: 'WebStorm', command: 'webstorm' },
+  { id: 'idea', label: 'IntelliJ IDEA', command: 'idea' },
+  { id: 'zed', label: 'Zed', command: 'zed' },
 ];
 const FRAMEWORKS = new Set<FrameworkId>([
   'vite',
@@ -35,6 +40,17 @@ const runningProjects = new Map<string, { session: ProjectRunSession; child: Ret
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function detectPackageManager(directory: string, packageJson: { packageManager?: unknown }): PackageManagerId {
+  if (typeof packageJson.packageManager === 'string') {
+    const declared = packageJson.packageManager.split('@')[0];
+    if (['npm', 'pnpm', 'yarn', 'bun'].includes(declared)) return declared as PackageManagerId;
+  }
+  if (['bun.lockb', 'bun.lock'].some((name) => existsSync(path.join(directory, name)))) return 'bun';
+  if (existsSync(path.join(directory, 'pnpm-lock.yaml'))) return 'pnpm';
+  if (existsSync(path.join(directory, 'yarn.lock'))) return 'yarn';
+  return 'npm';
 }
 
 export function validateProjectRunInput(value: unknown): ProjectRunInput {
@@ -53,6 +69,17 @@ export function validateProjectRunInput(value: unknown): ProjectRunInput {
     target: value.target,
     framework: value.framework as FrameworkId,
   };
+}
+
+export function buildPackageManagerRunArgs(
+  packageManager: PackageManagerId,
+  framework: FrameworkId,
+  target: ProjectRunInput['target'],
+  port: number
+): string[] {
+  const args = buildProjectRunArgs(framework, target, port);
+  if (packageManager === 'npm' || packageManager === 'pnpm' || target === 'api') return args;
+  return args.filter((_, index) => index !== 2);
 }
 
 export function buildProjectRunArgs(
@@ -106,7 +133,7 @@ async function validateProjectDirectory(directoryInput: string): Promise<string>
 export async function startProjectRun(value: unknown): Promise<ProjectRunSession> {
   const input = validateProjectRunInput(value);
   const directory = await validateProjectDirectory(input.directory);
-  let packageJson: { name?: unknown; scripts?: Record<string, unknown> };
+  let packageJson: { name?: unknown; packageManager?: unknown; scripts?: Record<string, unknown> };
   try {
     packageJson = JSON.parse(await fs.readFile(path.join(directory, 'package.json'), 'utf8')) as typeof packageJson;
   } catch (error) {
@@ -117,22 +144,29 @@ export async function startProjectRun(value: unknown): Promise<ProjectRunSession
   }
 
   const name = typeof packageJson.name === 'string' ? packageJson.name : path.basename(directory);
+  const packageManager = detectPackageManager(directory, packageJson);
   const existing = Array.from(runningProjects.values()).find(
     ({ session }) => session.directory === directory && session.target === input.target && session.status === 'running'
   );
   if (existing) return existing.session;
 
   const port = await findAvailableProjectPort();
-  const npmCliPath = resolveNpmCliPath();
-  const child = spawn(
-    process.execPath,
-    [npmCliPath, ...buildProjectRunArgs(input.framework, input.target, port)],
-    {
+  const runArgs = buildPackageManagerRunArgs(packageManager, input.framework, input.target, port);
+  let command: string = packageManager;
+  let args = runArgs;
+  if (packageManager === 'npm') {
+    command = process.execPath;
+    args = [resolveNpmCliPath(), ...runArgs];
+  } else if (process.platform === 'win32') {
+    command = process.env.ComSpec || 'cmd.exe';
+    args = ['/d', '/s', '/c', `${packageManager} ${runArgs.join(' ')}`];
+  }
+  const child = spawn(command, args, {
       cwd: directory,
       env: { ...process.env, PORT: String(port), HOST: '127.0.0.1' },
       stdio: ['ignore', 'pipe', 'pipe'],
-    }
-  );
+      windowsHide: true,
+  });
   const session: ProjectRunSession = {
     id: randomUUID(),
     projectName: name,
@@ -246,6 +280,21 @@ export async function openProjectInEditor(value: unknown): Promise<void> {
   const child = spawn(executable, [directory], {
     detached: true,
     stdio: 'ignore',
+  });
+  await once(child, 'spawn');
+  child.unref();
+}
+
+export async function openProjectFolder(value: unknown): Promise<void> {
+  if (!isRecord(value) || typeof value.directory !== 'string' || !path.isAbsolute(value.directory)) {
+    throw new Error('Choose a valid absolute project folder.');
+  }
+  const directory = await validateProjectDirectory(value.directory);
+  const command = process.platform === 'win32' ? 'explorer.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+  const child = spawn(command, [directory], {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
   });
   await once(child, 'spawn');
   child.unref();

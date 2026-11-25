@@ -7,14 +7,23 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import type {
   ApiFrameworkId,
+  BuildCompilerId,
   DatabaseId,
+  DevToolId,
   FrameworkId,
   FullStackLayout,
   LanguageId,
   PackageManagerId,
   ProjectType,
+  ProjectTechnologyConfig,
+  RuntimeId,
+  StylingId,
+  TestingId,
   ViteUiFramework,
 } from '../src/types/studio.ts';
+import { DEFAULT_PROJECT_CONFIG, STUDIO_PACKAGES, buildScaffoldConfigFiles } from '../src/data/studioCatalog.ts';
+import { projectRegistry } from './projectRegistry.ts';
+import { initializeGitRepository } from './gitManager.ts';
 
 const execFileAsync = promisify(execFile);
 const PROJECT_NAME_PATTERN = /^[a-z0-9][a-z0-9._-]{0,99}$/i;
@@ -27,6 +36,11 @@ const PROJECT_TYPES = new Set<ProjectType>(['frontend', 'api', 'fullstack']);
 const FULL_STACK_LAYOUTS = new Set<FullStackLayout>(['workspace', 'separate']);
 const API_FRAMEWORKS = new Set<ApiFrameworkId>(['express']);
 const DATABASES = new Set<DatabaseId>(['postgresql', 'mongodb', 'mysql', 'sqlite', 'redis']);
+const COMPILERS = new Set<BuildCompilerId>(['swc', 'standard']);
+const DEV_TOOLS = new Set<DevToolId>(['eslint', 'prettier', 'biome']);
+const STYLINGS = new Set<StylingId>(['tailwind', 'sass', 'css-modules', 'plain-css']);
+const TESTING = new Set<TestingId>(['vitest', 'playwright', 'none']);
+const RUNTIMES = new Set<RuntimeId>(['node', 'deno', 'bun']);
 
 export interface InstallPackage {
   name: string;
@@ -45,6 +59,8 @@ export interface ProjectInstallInput {
   viteUiFramework: ViteUiFramework;
   language: LanguageId;
   packageManager: PackageManagerId;
+  initGit: boolean;
+  technology: ProjectTechnologyConfig;
   packages: InstallPackage[];
 }
 
@@ -66,6 +82,7 @@ export interface InstallJob {
   apiFramework: ApiFrameworkId;
   framework: FrameworkId;
   packageManager: PackageManagerId;
+  technology: ProjectTechnologyConfig;
   projectPath: string;
   currentStep: string | null;
   steps: InstallStep[];
@@ -99,7 +116,53 @@ export function validateProjectInstallInput(value: unknown): ProjectInstallInput
     viteUiFramework,
     language,
     packageManager,
+    initGit,
   } = value;
+  const technologyValue = value.technology;
+  if (!isRecord(technologyValue)) throw new Error('Project technology configuration is required.');
+  const technology = technologyValue;
+  if (
+    typeof technology.compiler !== 'string' ||
+    !COMPILERS.has(technology.compiler as BuildCompilerId) ||
+    typeof technology.styling !== 'string' ||
+    !STYLINGS.has(technology.styling as StylingId) ||
+    typeof technology.testing !== 'string' ||
+    !TESTING.has(technology.testing as TestingId) ||
+    typeof technology.runtime !== 'string' ||
+    !RUNTIMES.has(technology.runtime as RuntimeId)
+  ) {
+    throw new Error('Choose supported compiler, styling, testing, and runtime technologies.');
+  }
+  if (
+    !Array.isArray(technology.devTools) ||
+    technology.devTools.length > DEV_TOOLS.size ||
+    technology.devTools.some((tool) => typeof tool !== 'string' || !DEV_TOOLS.has(tool as DevToolId)) ||
+    new Set(technology.devTools).size !== technology.devTools.length
+  ) {
+    throw new Error('Choose only supported developer tools without duplicates.');
+  }
+  if (
+    typeof technology.runtimeVersion !== 'string' ||
+    technology.runtimeVersion.length > 80 ||
+    !/^[0-9A-Za-z._+-]*$/.test(technology.runtimeVersion) ||
+    typeof technology.strictTypeScript !== 'boolean' ||
+    !['4.1', '3.4'].includes(technology.tailwindVersion as string)
+  ) {
+    throw new Error('Project runtime or compiler settings are invalid.');
+  }
+  for (const port of [technology.devPort, technology.previewPort]) {
+    if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new Error('Development and preview ports must be valid TCP ports.');
+    }
+  }
+  if (
+    !Array.isArray(technology.selectedPackageIds) ||
+    technology.selectedPackageIds.length > 100 ||
+    technology.selectedPackageIds.some((id) => typeof id !== 'string' || !/^[a-z0-9._-]{1,120}$/i.test(id)) ||
+    new Set(technology.selectedPackageIds).size !== technology.selectedPackageIds.length
+  ) {
+    throw new Error('Selected technology IDs are invalid or duplicated.');
+  }
   if (typeof directory !== 'string' || directory.trim().length === 0 || directory.length > 1024) {
     throw new Error('Choose a valid local destination folder.');
   }
@@ -148,9 +211,12 @@ export function validateProjectInstallInput(value: unknown): ProjectInstallInput
   }
   if (
     typeof packageManager !== 'string' ||
-    packageManager !== 'npm'
+    !['npm', 'pnpm', 'yarn', 'bun'].includes(packageManager)
   ) {
-    throw new Error('The local installer currently supports npm only.');
+    throw new Error('Choose a supported package manager.');
+  }
+  if (initGit !== undefined && typeof initGit !== 'boolean') {
+    throw new Error('Git initialization must be enabled or disabled.');
   }
   if (!Array.isArray(value.packages) || value.packages.length > 50) {
     throw new Error('Choose no more than 50 additional packages.');
@@ -198,20 +264,38 @@ export function validateProjectInstallInput(value: unknown): ProjectInstallInput
     viteUiFramework: viteUiFramework as ViteUiFramework,
     language: language as LanguageId,
     packageManager: packageManager as PackageManagerId,
+    initGit: initGit === true,
+    technology: {
+      compiler: technology.compiler as BuildCompilerId,
+      devTools: technology.devTools as DevToolId[],
+      styling: technology.styling as StylingId,
+      testing: technology.testing as TestingId,
+      runtime: technology.runtime as RuntimeId,
+      runtimeVersion: technology.runtimeVersion,
+      strictTypeScript: technology.strictTypeScript,
+      tailwindVersion: technology.tailwindVersion as ProjectTechnologyConfig['tailwindVersion'],
+      devPort: technology.devPort as number,
+      previewPort: technology.previewPort as number,
+      selectedPackageIds: technology.selectedPackageIds as string[],
+    },
     packages,
   };
 }
 
 export function buildScaffoldArgs(input: Pick<
   ProjectInstallInput,
-  'framework' | 'viteUiFramework' | 'language' | 'projectName'
+  'framework' | 'viteUiFramework' | 'language' | 'projectName' | 'technology'
 >): string[] {
   const name = input.projectName;
   const languageSuffix = input.language === 'typescript' ? '-ts' : '';
 
   if (input.framework === 'vite') {
     const swcSuffix =
-      input.viteUiFramework === 'react' && input.language === 'typescript' ? '-swc' : '';
+      input.viteUiFramework === 'react' &&
+      input.language === 'typescript' &&
+      input.technology.compiler === 'swc'
+        ? '-swc'
+        : '';
     const template = `${input.viteUiFramework}${swcSuffix}${languageSuffix}`;
     return ['create', 'vite@latest', name, '--', '--template', template];
   }
@@ -370,25 +454,37 @@ const NPM_NETWORK_OPTIONS = [
   '--maxsockets=8',
 ];
 
-function runNpm(
+function runPackageManager(
+  packageManager: PackageManagerId,
   args: string[],
   cwd: string,
   step: InstallStep
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    let npmCliPath: string;
-    try {
-      npmCliPath = resolveNpmCliPath();
-    } catch (error) {
-      step.status = 'failed';
-      reject(error);
-      return;
+    let executable: string = packageManager;
+    let commandArgs = args;
+    if (packageManager === 'npm') {
+      try {
+        commandArgs = [resolveNpmCliPath(), ...NPM_NETWORK_OPTIONS, ...args];
+        executable = process.execPath;
+      } catch (error) {
+        step.status = 'failed';
+        reject(error);
+        return;
+      }
     }
 
-    const child = spawn(process.execPath, [npmCliPath, ...NPM_NETWORK_OPTIONS, ...args], {
+    const spawnCommand = process.platform === 'win32' && packageManager !== 'npm'
+      ? process.env.ComSpec || 'cmd.exe'
+      : executable;
+    const spawnArgs = process.platform === 'win32' && packageManager !== 'npm'
+      ? ['/d', '/s', '/c', `${packageManager} ${commandArgs.join(' ')}`]
+      : commandArgs;
+    const child = spawn(spawnCommand, spawnArgs, {
       cwd,
       env: process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     });
     const timer = setTimeout(() => {
       child.kill();
@@ -403,7 +499,7 @@ function runNpm(
       clearTimeout(timer);
       step.durationMs = Date.now() - started;
       step.status = 'failed';
-      reject(new Error(`Could not start npm: ${error.message}`));
+      reject(new Error(`Could not start ${packageManager}: ${error.message}`));
     });
     child.once('close', (code) => {
       clearTimeout(timer);
@@ -419,6 +515,10 @@ function runNpm(
   });
 }
 
+function runNpm(args: string[], cwd: string, step: InstallStep): Promise<void> {
+  return runPackageManager('npm', args, cwd, step);
+}
+
 export function npmPackageArgs(packages: InstallPackage[]): string[][] {
   const groups = [
     { selected: packages.filter((item) => !item.isDevDependency), dev: false },
@@ -432,6 +532,24 @@ export function npmPackageArgs(packages: InstallPackage[]): string[][] {
     result.push(['install', ...(group.dev ? ['--save-dev'] : []), ...specs]);
   }
   return result;
+}
+
+export function packageManagerPackageArgs(
+  packageManager: PackageManagerId,
+  packages: InstallPackage[]
+): string[][] {
+  const grouped = [
+    { selected: packages.filter((item) => !item.isDevDependency), dev: false },
+    { selected: packages.filter((item) => item.isDevDependency), dev: true },
+  ];
+  return grouped
+    .filter((group) => group.selected.length > 0)
+    .map((group) => {
+      const specs = group.selected.map((item) => `${item.name}@${item.version}`);
+      if (packageManager === 'npm') return ['install', ...(group.dev ? ['--save-dev'] : []), ...specs];
+      if (packageManager === 'pnpm') return ['add', ...(group.dev ? ['--save-dev'] : []), ...specs];
+      return ['add', ...(group.dev ? ['--dev'] : []), ...specs];
+    });
 }
 
 function makeSteps(input: ProjectInstallInput): InstallStep[] {
@@ -470,10 +588,19 @@ function makeSteps(input: ProjectInstallInput): InstallStep[] {
     durationMs: 0,
     outputLines: [],
   });
-  for (const [index] of npmPackageArgs(input.packages).entries()) {
+  for (const [index] of packageManagerPackageArgs(input.packageManager, input.packages).entries()) {
     steps.push({
       id: `packages-${index + 1}`,
       label: `Install selected ${index === 0 && input.packages.some((item) => !item.isDevDependency) ? 'runtime' : 'development'} packages`,
+      status: 'pending',
+      durationMs: 0,
+      outputLines: [],
+    });
+  }
+  if (input.initGit) {
+    steps.push({
+      id: 'git-init',
+      label: 'Initialize local Git repository',
       status: 'pending',
       durationMs: 0,
       outputLines: [],
@@ -789,19 +916,97 @@ async function createExpressApiProject(
   await fs.writeFile(path.join(directory, '.gitignore'), 'node_modules\ndist\n.env\ndata/\n');
 }
 
-async function ensureFrontendDevScript(frontendPath: string, framework: FrameworkId): Promise<void> {
+export function withDevelopmentPort(
+  script: string,
+  framework: FrameworkId,
+  port: number
+): string {
+  const alreadyHasPort = /(?:^|\s)(?:--port(?:=|\s)|-p(?:=|\s))/.test(script);
+  if (alreadyHasPort) return script;
+  if (framework === 'nextjs') return `${script} -p ${port}`;
+  return `${script} --port ${port}`;
+}
+
+async function configureFrontend(
+  frontendPath: string,
+  input: ProjectInstallInput
+): Promise<void> {
   const packagePath = path.join(frontendPath, 'package.json');
   const packageJson = JSON.parse(await fs.readFile(packagePath, 'utf8')) as {
     scripts?: Record<string, string>;
   };
   packageJson.scripts = packageJson.scripts ?? {};
   if (!packageJson.scripts.dev) {
-    packageJson.scripts.dev = framework === 'angular' ? 'ng serve' : packageJson.scripts.start ?? '';
+    packageJson.scripts.dev =
+      input.framework === 'angular' ? 'ng serve' : packageJson.scripts.start ?? '';
   }
   if (!packageJson.scripts.dev) {
-    throw new Error(`The generated ${framework} project does not define a dev or start script.`);
+    throw new Error(`The generated ${input.framework} project does not define a dev or start script.`);
   }
+  packageJson.scripts.dev = withDevelopmentPort(
+    packageJson.scripts.dev,
+    input.framework,
+    input.technology.devPort
+  );
+  if (packageJson.scripts.preview) {
+    packageJson.scripts.preview = withDevelopmentPort(
+      packageJson.scripts.preview,
+      input.framework,
+      input.technology.previewPort
+    );
+  }
+  if (input.technology.devTools.includes('eslint')) packageJson.scripts.lint = 'eslint .';
+  if (input.technology.devTools.includes('biome')) packageJson.scripts.check = 'biome check .';
+  if (input.technology.testing === 'vitest') packageJson.scripts.test = 'vitest';
+  if (input.technology.testing === 'playwright') packageJson.scripts['test:e2e'] = 'playwright test';
   await fs.writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
+
+  const projectConfig = {
+    ...DEFAULT_PROJECT_CONFIG,
+    projectName: input.projectName,
+    framework: input.framework,
+    viteUiFramework: input.viteUiFramework,
+    language: input.language,
+    compiler: input.technology.compiler,
+    devTools: input.technology.devTools,
+    styling: input.technology.styling,
+    testing: input.technology.testing,
+    runtime: input.technology.runtime,
+    runtimeVersion: input.technology.runtimeVersion,
+    strictTypeScript: input.technology.strictTypeScript,
+    tailwindVersion: input.technology.tailwindVersion,
+    devPort: input.technology.devPort,
+    previewPort: input.technology.previewPort,
+    packageManager: input.packageManager,
+    selectedPackageIds: input.technology.selectedPackageIds,
+  };
+  const configs = buildScaffoldConfigFiles(projectConfig, STUDIO_PACKAGES);
+  const enabledConfigIds = new Set<string>();
+  if (input.technology.devTools.includes('biome')) enabledConfigIds.add('cfg-biome');
+  if (input.technology.devTools.includes('eslint')) enabledConfigIds.add('cfg-eslint');
+  if (input.technology.devTools.includes('prettier')) enabledConfigIds.add('cfg-prettier');
+  if (input.technology.testing === 'vitest') enabledConfigIds.add('cfg-vitest');
+  if (input.technology.testing === 'playwright') enabledConfigIds.add('cfg-playwright');
+
+  for (const config of configs) {
+    if (enabledConfigIds.has(config.id)) {
+      await fs.writeFile(path.join(frontendPath, config.filePath), config.content);
+    }
+  }
+
+  if (input.language === 'typescript') {
+    const tsconfigPath = path.join(frontendPath, 'tsconfig.json');
+    try {
+      const tsconfig = JSON.parse(await fs.readFile(tsconfigPath, 'utf8')) as {
+        compilerOptions?: Record<string, unknown>;
+      };
+      tsconfig.compilerOptions = tsconfig.compilerOptions ?? {};
+      tsconfig.compilerOptions.strict = input.technology.strictTypeScript;
+      await fs.writeFile(tsconfigPath, `${JSON.stringify(tsconfig, null, 2)}\n`);
+    } catch (error) {
+      if (!isRecord(error) || error.code !== 'ENOENT') throw error;
+    }
+  }
 }
 
 async function createWorkspacePackage(rootPath: string, projectName: string): Promise<void> {
@@ -837,6 +1042,7 @@ export async function startProjectInstall(value: unknown): Promise<InstallJob> {
     apiFramework: input.apiFramework,
     framework: input.framework,
     packageManager: input.packageManager,
+    technology: input.technology,
     ...paths,
     currentStep: null,
     steps: makeSteps(input),
@@ -870,7 +1076,7 @@ async function runInstallJob(
         path.dirname(paths.frontendPath),
         frontendStep
       );
-      await ensureFrontendDevScript(paths.frontendPath, input.framework);
+      await configureFrontend(paths.frontendPath, input);
     }
 
     const apiStep = job.steps.find((step) => step.id === 'api-scaffold');
@@ -905,29 +1111,58 @@ async function runInstallJob(
     if (!dependencyStep) throw new Error('Dependency installation step was not prepared.');
     job.currentStep = dependencyStep.id;
     if (paths.workspaceRoot) {
-      await runNpm(['install'], paths.workspaceRoot, dependencyStep);
+      await runPackageManager(input.packageManager, ['install'], paths.workspaceRoot, dependencyStep);
     } else {
       if (paths.frontendPath) {
-        await runNpm(['install'], paths.frontendPath, dependencyStep);
+        await runPackageManager(input.packageManager, ['install'], paths.frontendPath, dependencyStep);
       }
       if (paths.apiPath) {
-        await runNpm(['install'], paths.apiPath, dependencyStep);
+        await runPackageManager(input.packageManager, ['install'], paths.apiPath, dependencyStep);
       }
     }
 
-    const packageArgs = npmPackageArgs(input.packages);
+    const packageArgs = packageManagerPackageArgs(input.packageManager, input.packages);
     for (const [index, args] of packageArgs.entries()) {
       const step = job.steps.find((item) => item.id === `packages-${index + 1}`);
       if (!step) throw new Error('A selected-package installation step was not prepared.');
       job.currentStep = step.id;
       const packageDirectory = paths.apiPath && !paths.frontendPath ? paths.apiPath : paths.frontendPath;
       if (!packageDirectory) throw new Error('No package installation target was prepared.');
-      const npmArgs =
-        paths.workspaceRoot && packageDirectory === paths.frontendPath
+      const selectedPackageArgs =
+        paths.workspaceRoot && packageDirectory === paths.frontendPath && input.packageManager === 'npm'
           ? ['install', '--workspace', 'frontend', ...args.slice(1)]
           : args;
-      await runNpm(npmArgs, packageDirectory, step);
+      await runPackageManager(input.packageManager, selectedPackageArgs, packageDirectory, step);
     }
+
+    const gitStep = job.steps.find((step) => step.id === 'git-init');
+    if (gitStep) {
+      job.currentStep = gitStep.id;
+      gitStep.status = 'running';
+      const started = Date.now();
+      const gitDirectories = paths.workspaceRoot
+        ? [paths.workspaceRoot]
+        : paths.apiPath && paths.frontendPath
+          ? [paths.frontendPath, paths.apiPath]
+          : [paths.projectPath];
+      for (const directory of gitDirectories) {
+        await initializeGitRepository(directory);
+      }
+      gitStep.durationMs = Date.now() - started;
+      gitStep.status = 'completed';
+    }
+    await projectRegistry.registerCreated({
+      projectName: job.projectName,
+      projectType: job.projectType,
+      fullStackLayout: job.fullStackLayout,
+      framework: job.framework,
+      packageManager: job.packageManager,
+      technology: job.technology,
+      directory: paths.projectPath,
+      frontendPath: paths.frontendPath,
+      apiPath: paths.apiPath,
+      workspacePath: paths.workspacePath,
+    });
     job.status = 'completed';
   } catch (error) {
     job.status = 'failed';

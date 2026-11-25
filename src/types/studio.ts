@@ -139,6 +139,20 @@ export interface ProjectConfig {
   selectedRenameFilePaths: string[];
 }
 
+export interface ProjectTechnologyConfig {
+  compiler: BuildCompilerId;
+  devTools: DevToolId[];
+  styling: StylingId;
+  testing: TestingId;
+  runtime: RuntimeId;
+  runtimeVersion: string;
+  strictTypeScript: boolean;
+  tailwindVersion: '4.1' | '3.4';
+  devPort: number;
+  previewPort: number;
+  selectedPackageIds: string[];
+}
+
 export interface CompatibilityIssue {
   id: string;
   severity: 'warning' | 'error' | 'info';
@@ -269,6 +283,7 @@ export interface HistoryRecord {
   durationSec: number;
   commandCount: number;
   mode: 'Local Installation';
+  technology?: ProjectTechnologyConfig;
 }
 
 export type InspectorTarget =
@@ -312,6 +327,7 @@ export interface AiProviderMeta {
   defaultModel: string;
   models: AiModelOption[];
   supportsCustomModel: boolean;
+  supportsCustomEndpoint?: boolean;
 }
 
 export interface AiProviderStatus {
@@ -320,6 +336,9 @@ export interface AiProviderStatus {
   envVar: string;
   configured: boolean;
   defaultModel: string;
+  endpoint?: string;
+  credentialSource?: 'environment' | 'saved' | 'none';
+  credentialStored?: boolean;
 }
 
 export interface AiStackRecommendation {

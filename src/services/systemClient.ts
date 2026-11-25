@@ -1,4 +1,5 @@
 import type { NpmPackageDetail, NpmSearchPackage, SystemProbeResult } from '../types/studio';
+import { readJsonResponse } from './http';
 
 export async function fetchSystemProbe(devPort: number, previewPort: number): Promise<SystemProbeResult> {
   const res = await fetch(
@@ -6,7 +7,7 @@ export async function fetchSystemProbe(devPort: number, previewPort: number): Pr
       String(previewPort)
     )}`
   );
-  const data = (await res.json()) as SystemProbeResult & { error?: string };
+  const data = await readJsonResponse<SystemProbeResult & { error?: string }>(res);
   if (!res.ok) {
     throw new Error(data.error || `System probe failed (HTTP ${res.status})`);
   }
@@ -15,7 +16,7 @@ export async function fetchSystemProbe(devPort: number, previewPort: number): Pr
 
 export async function searchNpmRegistry(query: string): Promise<NpmSearchPackage[]> {
   const res = await fetch(`/api/npm/search?q=${encodeURIComponent(query)}`);
-  const data = (await res.json()) as { results?: NpmSearchPackage[]; error?: string };
+  const data = await readJsonResponse<{ results?: NpmSearchPackage[]; error?: string }>(res);
   if (!res.ok) {
     throw new Error(data.error || `npm search failed (HTTP ${res.status})`);
   }
@@ -24,7 +25,7 @@ export async function searchNpmRegistry(query: string): Promise<NpmSearchPackage
 
 export async function fetchNpmPackageMeta(name: string): Promise<NpmPackageDetail> {
   const res = await fetch(`/api/npm/package?name=${encodeURIComponent(name)}`);
-  const data = (await res.json()) as { detail?: NpmPackageDetail; error?: string };
+  const data = await readJsonResponse<{ detail?: NpmPackageDetail; error?: string }>(res);
   if (!res.ok || !data.detail) {
     throw new Error(data.error || `Failed to inspect npm package "${name}"`);
   }

@@ -1,13 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   Activity,
-  ChevronDown,
   Cpu,
   FolderKanban,
   History,
   Layers,
   LayoutGrid,
-  MoreHorizontal,
   Search,
   Settings,
   User,
@@ -38,29 +36,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   systemProbe,
   onOpenCommandPalette,
 }) => {
-  const primaryItems: NavItem[] = [
+  const navigationItems: NavItem[] = [
     { id: 'overview', label: 'Overview', icon: LayoutGrid },
     { id: 'project-studio', label: 'Create New Project', icon: FolderKanban },
-    {
-      id: 'history',
-      label: 'Installed projects',
-      icon: History,
-    },
-  ];
-
-  const moreItems: NavItem[] = [
+    { id: 'history', label: 'Installed projects', icon: History },
     { id: 'runtimes', label: 'Runtime manager', icon: Cpu },
     { id: 'tech-stack', label: 'Tech Stack', icon: Layers },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
-
-  const [moreOpen, setMoreOpen] = useState(false);
-  const primaryIds: ScreenId[] = ['overview', 'project-studio', 'history'];
-  const moreIsActive = !primaryIds.includes(activeScreen);
-
-  useEffect(() => {
-    if (moreIsActive) setMoreOpen(true);
-  }, [moreIsActive]);
 
   const renderGroup = (title: string, items: NavItem[]) => (
     <div className="flex flex-col gap-1">
@@ -146,30 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <nav aria-label="Primary workspace navigation" className="p-3 flex flex-col gap-4 overflow-y-auto">
-          {renderGroup('Workspace', primaryItems)}
-          <div className="flex flex-col gap-1">
-            <button
-              type="button"
-              onClick={() => setMoreOpen((open) => !open)}
-              aria-expanded={moreOpen}
-              className={`flex items-center justify-between rounded-[4px] border px-3 py-2 text-left text-[13px] transition-colors ${
-                moreIsActive
-                  ? 'border-[#3B434D] bg-[#252A30] text-[#F1F3F5]'
-                  : 'border-transparent text-[#929BA5] hover:bg-[#1D2126] hover:text-[#F1F3F5]'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <MoreHorizontal className="h-4 w-4 text-[#626D78]" />
-                <span>More tools</span>
-              </span>
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {moreOpen && (
-              <div className="mt-1 flex flex-col gap-4 border-l border-[#2A3038] pl-2">
-                {renderGroup('Other workspaces', moreItems)}
-              </div>
-            )}
-          </div>
+          {renderGroup('Workspace', navigationItems)}
         </nav>
       </div>
 

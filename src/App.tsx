@@ -411,6 +411,7 @@ export default function App() {
                   framework: job.framework,
                   databases: job.databases,
                   packageManager: job.packageManager,
+                  technology: job.technology,
                   directory: job.projectPath,
                   timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
                   status: job.status === 'completed' ? 'completed' : 'failed',
@@ -448,6 +449,7 @@ export default function App() {
           <InstallationHistoryScreen
             history={history}
             onClearHistory={() => setHistory([])}
+            onRemoveHistory={(directory) => setHistory((previous) => previous.filter((item) => item.directory !== directory))}
           />
         );
       case 'tech-stack':

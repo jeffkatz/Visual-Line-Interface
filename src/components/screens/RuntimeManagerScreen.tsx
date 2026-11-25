@@ -11,6 +11,7 @@ import { PackageManagerMark, RuntimeMark } from '../icons/BrandMarks';
 import { StatusIndicator } from '../controls/StatusIndicator';
 import { VersionSelector } from '../controls/VersionSelector';
 import { TechnicalMeter } from '../controls/TechnicalMeter';
+import { ConfirmDialog } from '../controls/ConfirmDialog';
 
 interface RuntimeManagerScreenProps {
   runtimes: RuntimeInfo[];
@@ -38,6 +39,7 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
   const [rescanning, setRescanning] = useState(false);
   const [updatingRuntimeId, setUpdatingRuntimeId] = useState<RuntimeId | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [runtimeToUpdate, setRuntimeToUpdate] = useState<RuntimeInfo | null>(null);
 
   const handleRescan = async () => {
     setRescanning(true);
@@ -272,7 +274,7 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          void handleUpdate(rt);
+                          setRuntimeToUpdate(rt);
                         }}
                         disabled={!rt.installedVersion || !rt.selectedVersion.trim() || isUpdating}
                         className="px-3 py-2 rounded-[4px] bg-[#C7A46A] hover:bg-[#D2B27C] text-[#101214] text-[12px] font-semibold cursor-pointer transition-colors"
@@ -344,6 +346,19 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
           </section>
         </div>
       </div>
+      <ConfirmDialog
+        open={Boolean(runtimeToUpdate)}
+        title={`Update ${runtimeToUpdate?.name ?? 'runtime'}?`}
+        description={`This runs the detected runtime manager to change the installed ${runtimeToUpdate?.name ?? 'runtime'} version to ${runtimeToUpdate?.selectedVersion ?? ''}. Other projects and terminals may be affected; VLI cannot roll back a failed system-level update.`}
+        confirmLabel="Update runtime"
+        destructive
+        onCancel={() => setRuntimeToUpdate(null)}
+        onConfirm={() => {
+          const runtime = runtimeToUpdate;
+          setRuntimeToUpdate(null);
+          if (runtime) void handleUpdate(runtime);
+        }}
+      />
     </div>
   );
 };

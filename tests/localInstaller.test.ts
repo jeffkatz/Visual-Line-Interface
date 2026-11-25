@@ -7,9 +7,11 @@ import {
   buildDatabaseScaffold,
   buildScaffoldArgs,
   npmPackageArgs,
+  packageManagerPackageArgs,
   prepareProjectPaths,
   prepareProjectPath,
   validateProjectInstallInput,
+  withDevelopmentPort,
 } from '../server/localInstaller';
 import type { ProjectInstallInput } from '../server/localInstaller';
 
@@ -24,10 +26,24 @@ const validInput: ProjectInstallInput = {
   viteUiFramework: 'react',
   language: 'typescript',
   packageManager: 'npm',
+  initGit: false,
+  technology: {
+    compiler: 'swc',
+    devTools: ['eslint', 'prettier'],
+    styling: 'tailwind',
+    testing: 'vitest',
+    runtime: 'node',
+    runtimeVersion: '',
+    strictTypeScript: true,
+    tailwindVersion: '4.1',
+    devPort: 5173,
+    previewPort: 4173,
+    selectedPackageIds: ['tailwindcss', 'typescript', 'eslint', 'prettier', 'vitest'],
+  },
   packages: [],
 };
 
-test('installer accepts only local npm requests with valid package specs', () => {
+test('installer accepts supported package managers with valid package specs', () => {
   const parsed = validateProjectInstallInput({
     ...validInput,
     packages: [{ name: '@types/node', version: '22.14.0', isDevDependency: true }],
@@ -38,10 +54,9 @@ test('installer accepts only local npm requests with valid package specs', () =>
     ['install', '--save-dev', '@types/node@22.14.0'],
   ]);
 
-  assert.throws(
-    () => validateProjectInstallInput({ ...validInput, packageManager: 'pnpm' }),
-    /npm only/
-  );
+  assert.equal(validateProjectInstallInput({ ...validInput, packageManager: 'pnpm' }).packageManager, 'pnpm');
+  assert.equal(validateProjectInstallInput({ ...validInput, packageManager: 'yarn' }).packageManager, 'yarn');
+  assert.throws(() => validateProjectInstallInput({ ...validInput, packageManager: 'unknown' }), /supported package manager/);
   assert.throws(
     () => validateProjectInstallInput({ ...validInput, projectName: '../outside' }),
     /Project name/
@@ -74,6 +89,31 @@ test('installer accepts only local npm requests with valid package specs', () =>
       }),
     /invalid pinned version/
   );
+});
+
+test('optional package arguments preserve runtime and development dependency groups', () => {
+  const packages = [
+    { name: 'zod', version: '3.24.2', isDevDependency: false },
+    { name: 'vitest', version: '3.0.0', isDevDependency: true },
+  ];
+  assert.deepEqual(packageManagerPackageArgs('npm', packages), [
+    ['install', 'zod@3.24.2'],
+    ['install', '--save-dev', 'vitest@3.0.0'],
+  ]);
+  assert.deepEqual(packageManagerPackageArgs('pnpm', packages), [
+    ['add', 'zod@3.24.2'],
+    ['add', '--save-dev', 'vitest@3.0.0'],
+  ]);
+  assert.deepEqual(packageManagerPackageArgs('yarn', packages), [
+    ['add', 'zod@3.24.2'],
+    ['add', '--dev', 'vitest@3.0.0'],
+  ]);
+});
+
+test('development commands use configured ports without duplicating an existing port option', () => {
+  assert.equal(withDevelopmentPort('vite', 'vite', 5180), 'vite --port 5180');
+  assert.equal(withDevelopmentPort('next dev', 'nextjs', 3001), 'next dev -p 3001');
+  assert.equal(withDevelopmentPort('ng serve --port 4201', 'angular', 4200), 'ng serve --port 4201');
 });
 
 test('database scaffold adds each selected driver, environment key, and connection check', () => {
