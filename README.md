@@ -21,11 +21,12 @@ Instead of memorising framework CLI flags, hunting down compatibility notes acro
 
 ### Core Product Philosophy
 
-- **Local execution** — The local server runs official scaffold commands and npm installs; the browser never executes shell text.
-- **Guided setup** — Four steps take users from framework selection through destination and package review to installation.
+- **Local execution** — The local server runs official frontend scaffolds, creates an Express API starter, and installs npm dependencies.
+- **Guided setup** — Four steps cover frontend-only, API-only, and full-stack layouts, destination, relevant packages, and local installation.
 - **Safe by default** — The server listens on loopback, accepts same-origin local actions, validates package specs, and refuses to overwrite an existing project folder.
-- **Honest scope** — The actual installer currently uses npm. Workflow Builder and Operations remain dry-run tools and do not execute custom commands.
+- **Database integrations** — API and full-stack projects can include supported database drivers and environment templates; database services are not provisioned.
 - **Precision over clutter** — Inspired by analogue synthesizers, audio mixing consoles, and industrial instrumentation without retro skeuomorphism.
+- **Accessible analog controls** — UI SDK switch and segmented-control behavior is selectively styled to match the workstation's tactile hardware controls.
 
 ---
 
@@ -33,19 +34,19 @@ Instead of memorising framework CLI flags, hunting down compatibility notes acro
 
 | Workspace | Purpose | Key Capabilities |
 | :--- | :--- | :--- |
-| **Create Project** | Primary guided installer | Choose a framework and language, select a local folder with the operating-system picker, review optional packages, then run the scaffold and npm install locally. |
-| **Package & Library Studio** | Dependency & live npm registry | Filter curated libraries (`Full Integration Setup` vs `Package Only`), search live `registry.npmjs.org` for any package, pin versions reflected in CLI commands, and jump to official Docs & npm. |
-| **Runtime Manager & Diagnostics** | Live host probe & toolchain telemetry | Probe real host OS, CPU arch, `PATH` binaries (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`, `git`), and TCP port availability via `/api/system/probe`, plus compare PM cache latency with Recharts. |
-| **Workflow Builder & Operations** | Advanced previews | Compose operation blocks and inspect dry-run output. These screens do not execute the displayed commands. |
-| **Docs & Tutorial** | In-app interactive guide | 6-chapter interactive walkthrough, hardware control reference, prompt guide, and live codebase map. |
-| **Settings & Providers** | Workstation defaults & optional AI routing | Configure shell syntax, knob sensitivity, and optional AI providers (**OpenRouter**, **Google Gemini**, **OpenAI**, **Anthropic**, **Groq**, **Mistral**, **Ollama**). |
-| **Command Palette (`⌘K` / `Ctrl+K`)** | Keyboard-first navigation & docs | Instant search across workspaces, quick foundation switching, script copying, and official documentation for every language, framework, and tool. |
+| **Overview** | Local workspace status | Review runtime readiness, recommended Tech Stacks, recent installations, and project creation shortcuts. |
+| **Create New Project** | Primary guided installer | Create Vite, Next.js, Astro, Vue, SvelteKit, or Angular frontends; Express APIs; or full-stack projects in a workspace or sibling folders. API and full-stack projects can include PostgreSQL, MongoDB, MySQL, SQLite, or Redis drivers and environment templates (database services are not provisioned). |
+| **Installed projects** | Local project actions | Run frontend/API scripts on a free OS-allocated port, stop running processes, and open project folders in installed editors. |
+| **Runtime Manager** | Live host probe & toolchain management | Probe real host OS, CPU arch, `PATH` binaries (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`, `git`), and update supported runtime versions. |
+| **Tech Stack** | Recommended project configurations | Explore and apply combinations including MERN, PERN, and MEAN. |
+| **Settings & Providers** | Appearance, diagnostics, and optional AI routing | Customize theme mode, accent, fonts, and text size; run environment diagnostics; configure workstation defaults and optional AI providers (**OpenRouter**, **Google Gemini**, **OpenAI**, **Anthropic**, **Groq**, **Mistral**, **Ollama**). |
+| **Command Palette (`⌘K` / `Ctrl+K`)** | Keyboard-first navigation & references | Search workspaces, switch frameworks, copy generated setup commands, and open official framework and toolchain references. |
 
 ---
 
 ## Design Language & Palette
 
-Visual Line Interface pairs layered charcoal and graphite surfaces with restrained warm brass and technical green accents:
+Visual Line Interface starts with layered charcoal surfaces and a warm brass accent. Settings also provide semi-dark, midnight, forest, ocean, and light modes, plus custom accent, font, and text-size controls.
 
 | Token | Hex | Role |
 | :--- | :--- | :--- |
@@ -85,14 +86,14 @@ npm run lint
 npm run build
 ```
 
-- Open **http://localhost:3000**. Use **Create project** for the real local install flow.
-- Folder selection opens a native picker on the machine running the server. Select a parent folder; the app creates a new child folder named after the project.
+- Open **http://localhost:3000**. Use **Create New Project** for the real local install flow.
+- Folder selection opens a native picker on the machine running the server. Choose a project name and folder layout; full-stack setups can create a workspace or sibling frontend/API folders.
 - Actual installs currently use npm. Node.js with npm is required. Existing project folders are never overwritten.
+- Use **Installed projects** to start a local dev server on an OS-allocated free port, stop it, or open the project in an available editor.
 - This feature requires the app to run locally on the same computer where the project should be created. A remotely hosted browser app cannot access your computer's folders or CLI.
-- The legacy **Workflow Builder** and **Dry-run simulator** are previews only; they do not execute arbitrary commands.
 
 - **User Manual & Tutorial**: [`DOCUMENTATION.md`](./DOCUMENTATION.md) — Step-by-step local setup, package selection, and advanced workspace notes.
-- **Codebase Blueprint (Agents & Engineers)**: [`project_structure.md`](./project_structure.md) — Full module map, state/data flow, `/api/system/probe`, `/api/npm/*`, `/api/ai/*` endpoints, and extension recipes.
+- **Codebase Blueprint (Agents & Engineers)**: [`project_structure.md`](./project_structure.md) — Full module map, state/data flow, runtime updates, `/api/system/probe`, `/api/npm/*`, `/api/ai/*` endpoints, and extension recipes.
 - **Audit & Roadmap**: [`PROJECT_AUDIT_AND_ROADMAP.md`](./PROJECT_AUDIT_AND_ROADMAP.md) — Implementation audit and completed engineering upgrades.
 
 ---
@@ -100,16 +101,20 @@ npm run build
 ## Project Architecture
 
 ```text
-server.ts                           # Loopback Express + Vite server and local installer API routes
-server/localInstaller.ts            # Native folder picker, validated npm scaffolding/install jobs
+server.ts                           # Loopback Express + Vite server and local project API routes
+server/localInstaller.ts            # Native folder picker, validated frontend/API scaffolding and npm jobs
+server/projectActions.ts            # Free-port project runs, process stops, and editor launch actions
+server/runtimeManager.ts            # Validated local runtime version manager commands
 tests/
 ├── studio.test.ts                  # Project config, scaffold preview, and prompt tests
-└── localInstaller.test.ts          # Installer input, destination safety, and command argument tests
+├── localInstaller.test.ts          # Installer input, destination safety, and command argument tests
+├── projectActions.test.ts          # Free-port selection, run arguments, and request validation
+└── runtimeManager.test.ts           # Runtime update validation and command argument tests
 src/
 ├── App.tsx                         # Root state, host probe sync, localStorage persistence & screen routing
 ├── index.css                       # Tailwind CSS v4 setup, theme tokens, hardware surface utilities
 ├── types/
-│   └── studio.ts                   # Core TypeScript domain models for configs, probes, npm, AI & pipelines
+│   └── studio.ts                   # Core TypeScript domain models for configs, probes, npm, AI, and runtime updates
 ├── data/
 │   ├── studioCatalog.ts            # Frameworks, runtimes, packages, doc links, CLI & config file synthesizers
 │   ├── stackAdvisor.ts             # Curated stack recommendations & deterministic Project Creation Prompt engine
@@ -117,15 +122,15 @@ src/
 ├── services/
 │   ├── aiClient.ts                 # Typed frontend API client for /api/ai/*
 │   ├── localInstallerClient.ts     # Typed client for local folder selection and install jobs
-│   └── systemClient.ts             # Typed frontend API client for /api/system/probe & /api/npm/*
+│   ├── systemClient.ts             # Typed frontend API client for /api/system/probe & /api/npm/*
+│   └── runtimeClient.ts            # Local runtime update action client
 └── components/
     ├── charts/                     # Recharts workstation visualizations (StudioCharts.tsx)
     ├── controls/                   # RotaryKnob, MechanicalToggle, SegmentedSelector, VersionSelector, Meters
     ├── icons/                      # Custom geometric brand & ecosystem marks
     ├── layout/                     # Persistent Sidebar & collapsible Contextual InspectorPanel
     ├── studio/                     # CommandPalette
-    └── screens/                    # ProjectSetupWizard, PackageStudio, RuntimeManager, WorkflowBuilder,
-                                    # OperationsCentre, Overview, DocumentationScreen, & Management/Settings
+    └── screens/                    # Project setup, installed projects, runtimes, operations, overview, docs, and settings
 ```
 
 ---
@@ -142,7 +147,7 @@ software installation, project scaffolding, and development environment configur
 Transform traditionally command-line-driven developer operations into intuitive, highly
 configurable visual experiences where developers can create Vite, Next.js, Astro, Vue, and
 SvelteKit projects, manage Node.js/Deno/Bun runtimes, select package managers (pnpm, npm,
-Yarn, Bun), install libraries, configure dependencies, and execute development workflows.
+Yarn, Bun), install libraries, configure dependencies, and preview setup operations.
 
 Aesthetic & Layout:
 - Inspired by analogue synthesizers, industrial instrumentation, high-end audio mixing
@@ -150,8 +155,8 @@ Aesthetic & Layout:
 - Deep charcoal/graphite surfaces (#101214, #171A1E, #1D2126, #252A30), warm brass (#C7A46A),
   and technical green (#65B9A5) with Inter/Plus Jakarta Sans and JetBrains Mono typography.
 - Persistent three-part desktop layout: Left Navigation Sidebar, Dynamic Main Workspace
-  (Project Studio, Package & Library Studio, Runtime Manager, Workflow Builder, Operations
-  Centre, Integration Registry, Project Recipes, Installation History, Diagnostics, Settings),
+  (Overview, Create New Project, Installed projects, Runtime Manager,
+  Tech Stack, Settings with environment diagnostics),
   and a collapsible Right Contextual Inspector Panel.
 - Precision hardware controls: segmented selectors, mechanical toggle switches, version
   selectors, technical meters, and rotary dials for numeric port/memory/timeout calibration.

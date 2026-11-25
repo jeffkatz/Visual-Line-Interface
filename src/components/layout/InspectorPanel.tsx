@@ -16,7 +16,6 @@ import type {
   ProjectConfig,
   RuntimeInfo,
   StudioPackage,
-  WorkflowNode,
 } from '../../types/studio';
 import {
   buildScaffoldManifest,
@@ -71,8 +70,6 @@ interface InspectorPanelProps {
   runtimes: RuntimeInfo[];
   packageManagers: PackageManagerInfo[];
   packages: StudioPackage[];
-  workflowNodes: WorkflowNode[];
-  onUpdateWorkflowNode?: (nodeId: string, patch: Partial<WorkflowNode>) => void;
   onApplyFix: (issueId: string) => void;
 }
 
@@ -86,8 +83,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   runtimes,
   packageManagers,
   packages,
-  workflowNodes,
-  onUpdateWorkflowNode,
   onApplyFix,
 }) => {
   if (collapsed) {
@@ -197,10 +192,10 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           <p className="text-[12.5px] text-[#929BA5] leading-relaxed">{rt.notes}</p>
 
           <dl className="grid grid-cols-2 gap-y-2 text-[12px] border-t border-[#2A3038] pt-3">
-            <dt className="text-[#626D78]">Active Version</dt>
-            <dd className="font-mono text-[#F1F3F5] text-right">{rt.selectedVersion}</dd>
-            <dt className="text-[#626D78]">Latest Upstream</dt>
-            <dd className="font-mono text-[#65B9A5] text-right">v{rt.latestVersion}</dd>
+            <dt className="text-[#626D78]">Installed Version</dt>
+            <dd className="font-mono text-[#F1F3F5] text-right">{rt.installedVersion ?? 'Not detected'}</dd>
+            <dt className="text-[#626D78]">Target Version</dt>
+            <dd className="font-mono text-[#65B9A5] text-right">{rt.selectedVersion || 'Not set'}</dd>
             <dt className="text-[#626D78]">Version Manager</dt>
             <dd className="font-mono text-[#929BA5] text-right">{rt.manager}</dd>
             <dt className="text-[#626D78]">Architecture</dt>
@@ -482,60 +477,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
       );
     }
 
-    if (target.type === 'workflow-node') {
-      const node = workflowNodes.find((n) => n.id === target.id);
-      if (!node) return null;
-      return (
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="text-[11px] font-mono uppercase tracking-wider text-[#C7A46A]">
-                Workflow Block · {node.phase}
-              </div>
-              <h3 className="text-[16px] font-semibold text-[#F1F3F5] mt-0.5">{node.title}</h3>
-            </div>
-            <StatusIndicator
-              tone={node.enabled ? 'installed' : 'missing'}
-              label={node.enabled ? 'Active' : 'Bypassed'}
-              compact
-            />
-          </div>
-
-          <p className="text-[12.5px] text-[#929BA5] leading-relaxed">{node.description}</p>
-
-          {onUpdateWorkflowNode && (
-            <div className="flex flex-col gap-3 border-t border-[#2A3038] pt-3">
-              <MechanicalToggle
-                checked={node.enabled}
-                onChange={(next) => onUpdateWorkflowNode(node.id, { enabled: next })}
-                label="Block Enabled"
-                description="Include this operation in automated workflow runs."
-              />
-
-              <MechanicalToggle
-                checked={node.continueOnError}
-                onChange={(next) => onUpdateWorkflowNode(node.id, { continueOnError: next })}
-                label="Continue on Error"
-                description="Proceed to downstream blocks if exit code is non-zero."
-              />
-
-              <div>
-                <label className="block text-[11px] font-medium text-[#929BA5] mb-1">
-                  Shell Command
-                </label>
-                <textarea
-                  rows={3}
-                  value={node.command}
-                  onChange={(e) => onUpdateWorkflowNode(node.id, { command: e.target.value })}
-                  className="w-full bg-[#101214] border border-[#343B43] focus:border-[#C7A46A] rounded p-2 font-mono text-[11.5px] text-[#F1F3F5] outline-none resize-none"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
-
     if (target.type === 'file-rename') {
       const manifest = buildScaffoldManifest(config);
       const pending = getPendingFileRenames(config);
@@ -615,7 +556,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             Configuration Signal
           </div>
           <h3 className="text-[16px] font-semibold text-[#F1F3F5] mt-0.5">
-            {config.projectName || 'my-awesome-app'}
+            {config.projectName || 'Name your project'}
           </h3>
         </div>
         <p className="text-[12.5px] text-[#929BA5] leading-relaxed">

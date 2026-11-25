@@ -31,6 +31,10 @@ export async function startProjectInstall(
   const input: ProjectInstallInput = {
     directory,
     projectName: config.projectName.trim(),
+    projectType: config.projectType,
+    databases: config.databases,
+    fullStackLayout: config.fullStackLayout,
+    apiFramework: config.apiFramework,
     framework: config.framework,
     viteUiFramework: config.viteUiFramework,
     language: config.language,

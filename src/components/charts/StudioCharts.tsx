@@ -15,8 +15,6 @@ import type {
   ExecutionCommandStep,
   ExecutionStepState,
   HistoryRecord,
-  PackageManagerId,
-  PackageManagerInfo,
 } from '../../types/studio';
 
 const CHART_TOOLTIP_STYLE: React.CSSProperties = {
@@ -89,7 +87,6 @@ export const PipelinePhaseChart: React.FC<{
     </div>
   );
 };
-
 export const HistoryDurationChart: React.FC<{
   history: HistoryRecord[];
 }> = ({ history }) => {
@@ -209,62 +206,6 @@ export const ExecutionTimingChart: React.FC<{
               />
             ))}
           </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-};
-
-export const PackageManagerBenchmarkChart: React.FC<{
-  packageManagers: PackageManagerInfo[];
-  activePmId?: PackageManagerId;
-}> = ({ packageManagers, activePmId }) => {
-  const data = useMemo(() => {
-    const profileMap: Record<PackageManagerId, { coldSec: number; warmSec: number }> = {
-      bun: { coldSec: 3.1, warmSec: 0.6 },
-      pnpm: { coldSec: 5.4, warmSec: 1.1 },
-      yarn: { coldSec: 7.2, warmSec: 1.8 },
-      npm: { coldSec: 10.6, warmSec: 3.2 },
-    };
-    return packageManagers.map((pm) => ({
-      id: pm.id,
-      name: pm.name,
-      coldSec: profileMap[pm.id].coldSec,
-      warmSec: profileMap[pm.id].warmSec,
-      isActive: pm.id === activePmId,
-    }));
-  }, [packageManagers, activePmId]);
-
-  return (
-    <div className="h-[190px] w-full min-w-0">
-      <ResponsiveContainer width="100%" height={190} minWidth={0} initialDimension={{ width: 640, height: 190 }}>
-        <BarChart data={data} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
-          <CartesianGrid stroke="#23282E" strokeDasharray="3 3" vertical={false} />
-          <XAxis
-            dataKey="name"
-            tick={{ fill: '#929BA5', fontSize: 11, fontFamily: '"JetBrains Mono", monospace' }}
-            axisLine={{ stroke: '#2A3038' }}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: '#626D78', fontSize: 10.5, fontFamily: '"JetBrains Mono", monospace' }}
-            axisLine={false}
-            tickLine={false}
-            unit="s"
-          />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            cursor={{ fill: 'rgba(199, 164, 106, 0.08)' }}
-          />
-          <Bar dataKey="coldSec" name="Cold Install Profile (s)" radius={[3, 3, 0, 0]} maxBarSize={28}>
-            {data.map((entry) => (
-              <Cell
-                key={entry.id}
-                fill={entry.isActive ? '#C7A46A' : '#434C57'}
-              />
-            ))}
-          </Bar>
-          <Bar dataKey="warmSec" name="Warm Cache Profile (s)" fill="#65B9A5" radius={[3, 3, 0, 0]} maxBarSize={28} />
         </BarChart>
       </ResponsiveContainer>
     </div>

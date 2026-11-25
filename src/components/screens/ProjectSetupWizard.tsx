@@ -11,16 +11,19 @@ import {
   Play,
 } from 'lucide-react';
 import type {
-  FrameworkId,
+  FullStackLayout,
   LanguageId,
   PackageManagerInfo,
   ProjectConfig,
+  ProjectType,
   StudioPackage,
 } from '../../types/studio';
 import type { ProjectInstallJob } from '../../types/localInstaller';
 import { FRAMEWORKS } from '../../data/studioCatalog';
+import { DATABASE_OPTIONS } from '../../data/databases';
 import { chooseLocalDirectory, fetchProjectInstall, startProjectInstall } from '../../services/localInstallerClient';
 import { FrameworkMark } from '../icons/BrandMarks';
+import { SegmentedSelector } from '../controls/SegmentedSelector';
 
 interface ProjectSetupWizardProps {
   config: ProjectConfig;
@@ -30,7 +33,7 @@ interface ProjectSetupWizardProps {
   onInstallationComplete: (job: ProjectInstallJob) => void;
 }
 
-const STEPS = ['Choose stack', 'Project location', 'Add packages', 'Review & install'];
+const STEPS = ['Choose project', 'Project location', 'Review packages', 'Review & install'];
 
 function StepStatus({ status }: { status: ProjectInstallJob['steps'][number]['status'] }) {
   if (status === 'completed') return <CheckCircle2 className="h-4 w-4 text-[#65B9A5]" />;
@@ -57,14 +60,37 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
   const selectedFramework = FRAMEWORKS.find((item) => item.id === config.framework) ?? FRAMEWORKS[0];
   const selectedManager = packageManagers.find((item) => item.id === 'npm');
   const isProjectNameValid = /^[a-z0-9][a-z0-9._-]{0,99}$/i.test(config.projectName.trim());
-  const selectedPackages = useMemo(
-    () => packages.filter((pkg) => config.selectedPackageIds.includes(pkg.id)),
-    [packages, config.selectedPackageIds]
+  const availablePackages = useMemo(
+    () =>
+      config.projectType === 'api'
+        ? []
+        : packages.filter((pkg) => pkg.compatibleFrameworks.includes(config.framework)),
+    [packages, config.projectType, config.framework]
   );
-  const projectPath =
+  const selectedPackages = useMemo(
+    () => availablePackages.filter((pkg) => config.selectedPackageIds.includes(pkg.id)),
+    [availablePackages, config.selectedPackageIds]
+  );
+  const projectRootPath =
     directory && config.projectName.trim()
       ? `${directory.replace(/[\\/]+$/, '')}${directory.includes('\\') ? '\\' : '/'}${config.projectName.trim()}`
       : '';
+  const projectPath =
+    directory && config.projectName.trim()
+      ? config.projectType === 'fullstack' && config.fullStackLayout === 'separate'
+        ? `${directory.replace(/[\\/]+$/, '')}${directory.includes('\\') ? '\\' : '/'}${config.projectName.trim()}-frontend`
+        : projectRootPath
+      : '';
+  const frontendProjectPath =
+    config.projectType === 'fullstack' && config.fullStackLayout === 'workspace' && projectRootPath
+      ? `${projectRootPath}${directory.includes('\\') ? '\\' : '/'}frontend`
+      : projectPath;
+  const apiProjectPath =
+    config.projectType === 'fullstack' && config.fullStackLayout === 'separate'
+      ? `${directory.replace(/[\\/]+$/, '')}${directory.includes('\\') ? '\\' : '/'}${config.projectName.trim()}-api`
+      : projectRootPath
+        ? `${projectRootPath}${directory.includes('\\') ? '\\' : '/'}api`
+        : '';
 
   useEffect(() => {
     if (!job || job.status === 'running' || reportedJobRef.current === job.id) return;
@@ -121,7 +147,7 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
     setJob(null);
     reportedJobRef.current = null;
     try {
-      const started = await startProjectInstall(directory, config, packages);
+      const started = await startProjectInstall(directory, config, selectedPackages);
       setJob(started);
     } catch (installError) {
       setError(installError instanceof Error ? installError.message : 'Unable to start installation.');
@@ -155,10 +181,10 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
             Local project setup
           </div>
           <h1 className="mt-1 text-[22px] font-semibold tracking-tight text-[#F1F3F5]">
-            Create a project
+            Create New Project
           </h1>
           <p className="mt-1 text-[13px] text-[#929BA5]">
-            Choose a stack, select a folder, review packages, then install on this computer.
+            Create a frontend, API, or full-stack project in a local folder.
           </p>
           <nav aria-label="Project setup steps" className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {STEPS.map((label, index) => {
@@ -194,39 +220,118 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
             <section aria-labelledby="stack-title" className="flex flex-col gap-4">
               <div>
                 <h2 id="stack-title" className="text-[16px] font-semibold text-[#F1F3F5]">
-                  1. Choose your framework
+                  1. Choose your project type and stack
                 </h2>
                 <p className="mt-1 text-[12px] text-[#929BA5]">
-                  Start with a familiar template. You can add libraries in the next step.
+                  Pick the project shape first. Framework-specific libraries are filtered in the next step.
                 </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {FRAMEWORKS.map((framework) => {
-                  const active = config.framework === framework.id;
-                  return (
-                    <button
-                      key={framework.id}
-                      type="button"
-                      onClick={() => onUpdateConfig({ framework: framework.id as FrameworkId })}
-                      aria-pressed={active}
-                      className={`rounded border p-4 text-left transition-colors ${
-                        active
-                          ? 'border-[#C7A46A] bg-[#1D2126]'
-                          : 'border-[#2D333B] bg-[#171A1E] hover:border-[#48525E]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <FrameworkMark id={framework.id} active={active} className="h-5 w-5" />
-                        {active && <CheckCircle2 className="h-4 w-4 text-[#C7A46A]" />}
-                      </div>
-                      <div className="mt-3 text-[14px] font-semibold text-[#F1F3F5]">{framework.name}</div>
-                      <div className="mt-1 text-[12px] leading-relaxed text-[#929BA5]">{framework.tagline}</div>
-                    </button>
-                  );
-                })}
-              </div>
+              <SegmentedSelector<ProjectType>
+                ariaLabel="Project type"
+                value={config.projectType}
+                onChange={(projectType) =>
+                  onUpdateConfig({ projectType, ...(projectType === 'frontend' ? { databases: [] } : {}) })
+                }
+                fullWidth
+                options={[
+                  { value: 'frontend', label: 'Frontend only' },
+                  { value: 'api', label: 'API only' },
+                  { value: 'fullstack', label: 'Full-stack' },
+                ]}
+              />
 
-              {config.framework === 'vite' && (
+              {config.projectType !== 'api' && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {FRAMEWORKS.map((framework) => {
+                    const active = config.framework === framework.id;
+                    return (
+                      <button
+                        key={framework.id}
+                        type="button"
+                        onClick={() =>
+                          onUpdateConfig({
+                            framework: framework.id,
+                            compiler: framework.supportsSwc ? config.compiler : 'standard',
+                            ...(framework.id === 'angular' ? { language: 'typescript' } : {}),
+                          })
+                        }
+                        aria-pressed={active}
+                        className={`rounded border p-4 text-left transition-colors ${
+                          active
+                            ? 'border-[#C7A46A] bg-[#1D2126]'
+                            : 'border-[#2D333B] bg-[#171A1E] hover:border-[#48525E]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <FrameworkMark id={framework.id} active={active} className="h-5 w-5" />
+                          {active && <CheckCircle2 className="h-4 w-4 text-[#C7A46A]" />}
+                        </div>
+                        <div className="mt-3 text-[14px] font-semibold text-[#F1F3F5]">{framework.name}</div>
+                        <div className="mt-1 text-[12px] leading-relaxed text-[#929BA5]">{framework.tagline}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {config.projectType !== 'frontend' && (
+                <div className="rounded border border-[#2D333B] bg-[#171A1E] p-4">
+                  <div className="text-[13px] font-medium text-[#F1F3F5]">API framework · Express + TypeScript</div>
+                  <p className="mt-1 text-[12px] text-[#929BA5]">
+                    Includes Express, CORS, dotenv, a typed health route, and a development script.
+                  </p>
+                  <fieldset className="mt-4 border-t border-[#2A3038] pt-3">
+                    <legend className="text-[12px] font-medium text-[#F1F3F5]">Optional database integrations</legend>
+                    <p className="mb-3 mt-1 text-[11px] text-[#929BA5]">
+                      Drivers and connection code are added to the API. Configure local credentials in its generated .env file.
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {DATABASE_OPTIONS.map((database) => (
+                        <label key={database.id} className="flex items-start gap-2.5 rounded border border-[#2A3038] bg-[#14171B] p-3">
+                          <input
+                            type="checkbox"
+                            checked={config.databases.includes(database.id)}
+                            onChange={() => {
+                              const databases = config.databases.includes(database.id)
+                                ? config.databases.filter((id) => id !== database.id)
+                                : [...config.databases, database.id];
+                              onUpdateConfig({ databases });
+                            }}
+                            className="mt-0.5 accent-[#C7A46A]"
+                          />
+                          <span>
+                            <span className="block text-[12px] font-medium text-[#F1F3F5]">{database.name}</span>
+                            <span className="mt-0.5 block text-[10.5px] text-[#929BA5]">{database.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                </div>
+              )}
+              {config.projectType === 'frontend' && (
+                <p className="rounded border border-[#E4AD63]/30 bg-[#E4AD63]/5 p-3 text-[11px] text-[#E4AD63]">
+                  Database connections require a server-side API. Choose API-only or full-stack to add one safely.
+                </p>
+              )}
+
+              {config.projectType === 'fullstack' && (
+                <div className="rounded border border-[#2D333B] bg-[#171A1E] p-4">
+                  <div className="mb-3 text-[12px] font-medium text-[#F1F3F5]">Folder layout</div>
+                  <SegmentedSelector<FullStackLayout>
+                    ariaLabel="Full-stack folder layout"
+                    value={config.fullStackLayout}
+                    onChange={(fullStackLayout) => onUpdateConfig({ fullStackLayout })}
+                    fullWidth
+                    options={[
+                      { value: 'workspace', label: 'One workspace', sublabel: 'frontend + api folders' },
+                      { value: 'separate', label: 'Separate projects', sublabel: 'sibling folders' },
+                    ]}
+                  />
+                </div>
+              )}
+
+              {config.framework === 'vite' && config.projectType !== 'api' && (
                 <div className="rounded border border-[#2D333B] bg-[#171A1E] p-4">
                   <label htmlFor="vite-ui" className="mb-2 block text-[12px] font-medium text-[#F1F3F5]">
                     Vite template
@@ -243,26 +348,39 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
                   </select>
                 </div>
               )}
-              <fieldset className="rounded border border-[#2D333B] bg-[#171A1E] p-4">
-                <legend className="px-1 text-[12px] font-medium text-[#F1F3F5]">Language</legend>
-                <div className="flex gap-2">
-                  {(['typescript', 'javascript'] as const).map((language) => (
-                    <button
-                      key={language}
-                      type="button"
-                      onClick={() => onUpdateConfig({ language: language as LanguageId })}
-                      aria-pressed={config.language === language}
-                      className={`rounded border px-3 py-2 text-[12px] capitalize ${
-                        config.language === language
-                          ? 'border-[#C7A46A] bg-[#252A30] text-[#F1F3F5]'
-                          : 'border-[#343B43] text-[#929BA5]'
-                      }`}
-                    >
-                      {language}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
+
+              {config.projectType !== 'api' && (
+                <fieldset className="rounded border border-[#2D333B] bg-[#171A1E] p-4">
+                  <legend className="px-1 text-[12px] font-medium text-[#F1F3F5]">Frontend language</legend>
+                  <div className="flex gap-2">
+                    {(['typescript', 'javascript'] as const).map((language) => {
+                      const disabled = config.framework === 'angular' && language === 'javascript';
+                      return (
+                        <button
+                          key={language}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => onUpdateConfig({ language: language as LanguageId })}
+                          aria-pressed={config.language === language}
+                          className={`rounded border px-3 py-2 text-[12px] capitalize disabled:cursor-not-allowed disabled:opacity-40 ${
+                            config.language === language
+                              ? 'border-[#C7A46A] bg-[#252A30] text-[#F1F3F5]'
+                              : 'border-[#343B43] text-[#929BA5]'
+                          }`}
+                        >
+                          {language}
+                        </button>
+                      );
+                    })}
+                    {config.framework === 'angular' && (
+                      <span className="self-center text-[11px] text-[#929BA5]">Angular requires TypeScript.</span>
+                    )}
+                  </div>
+                </fieldset>
+              )}
+              {config.projectType === 'api' && (
+                <p className="text-[11px] text-[#929BA5]">API starters use TypeScript.</p>
+              )}
             </section>
           )}
 
@@ -273,7 +391,9 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
                   2. Choose the project location
                 </h2>
                 <p className="mt-1 text-[12px] text-[#929BA5]">
-                  The project will be created as a new folder inside the location you select.
+                  {config.projectType === 'fullstack' && config.fullStackLayout === 'separate'
+                    ? 'Two sibling project folders will be created inside the location you select.'
+                    : 'A new project folder will be created inside the location you select.'}
                 </p>
               </div>
               <label className="flex flex-col gap-1.5 text-[12px] font-medium text-[#F1F3F5]">
@@ -312,8 +432,16 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
               </div>
               {projectPath && (
                 <div className="rounded border border-[#65B9A5]/40 bg-[#65B9A5]/5 p-3">
-                  <div className="text-[11px] uppercase tracking-wide text-[#65B9A5]">Project will be created at</div>
-                  <div className="mt-1 break-all font-mono text-[12px] text-[#F1F3F5]">{projectPath}</div>
+                  <div className="text-[11px] uppercase tracking-wide text-[#65B9A5]">
+                    {config.projectType === 'fullstack' ? 'Frontend project' : 'Project location'}
+                  </div>
+                  <div className="mt-1 break-all font-mono text-[12px] text-[#F1F3F5]">{frontendProjectPath}</div>
+                  {config.projectType === 'fullstack' && (
+                    <div className="mt-2">
+                      <div className="text-[11px] uppercase tracking-wide text-[#65B9A5]">API project</div>
+                      <div className="mt-1 break-all font-mono text-[12px] text-[#F1F3F5]">{apiProjectPath}</div>
+                    </div>
+                  )}
                 </div>
               )}
             </section>
@@ -323,10 +451,12 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
             <section aria-labelledby="packages-title" className="flex flex-col gap-4">
               <div>
                 <h2 id="packages-title" className="text-[16px] font-semibold text-[#F1F3F5]">
-                  3. Add optional packages
+                  3. Review recommended packages
                 </h2>
                 <p className="mt-1 text-[12px] text-[#929BA5]">
-                  The installer currently uses npm through the Node.js runtime without opening a shell.
+                  {config.projectType === 'api'
+                    ? 'The Express API starter includes Express, CORS, dotenv, and a health endpoint.'
+                    : `Choose compatible add-ons for ${selectedFramework.name}. You can change these later in the project.`}
                 </p>
               </div>
               <div className="flex items-center justify-between rounded border border-[#2D333B] bg-[#171A1E] p-4">
@@ -345,6 +475,11 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
                 </span>
               </div>
 
+              {config.projectType === 'api' ? (
+                <div className="rounded border border-[#2D333B] bg-[#171A1E] p-4 text-[12px] text-[#929BA5]">
+                  The API starter is ready to run with <span className="font-mono text-[#F1F3F5]">npm run dev</span>.
+                </div>
+              ) : (
               <div className="rounded border border-[#2D333B] bg-[#171A1E]">
                 <div className="flex items-center justify-between border-b border-[#2A3038] px-4 py-3">
                   <div>
@@ -354,7 +489,7 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
                   <span className="font-mono text-[11px] text-[#C7A46A]">{selectedPackages.length} selected</span>
                 </div>
                 <div className="divide-y divide-[#242A30]">
-                  {packages.map((pkg) => {
+                  {availablePackages.map((pkg) => {
                     const checked = config.selectedPackageIds.includes(pkg.id);
                     return (
                       <label key={pkg.id} className="flex cursor-pointer items-start gap-3 px-4 py-3 hover:bg-[#1D2126]">
@@ -376,6 +511,7 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
                   })}
                 </div>
               </div>
+              )}
               {!selectedManager || selectedManager.status !== 'installed' ? (
                 <div role="alert" className="rounded border border-[#DF7777]/50 bg-[#DF7777]/5 p-3 text-[12px] text-[#DF7777]">
                   Install Node.js with npm on this computer, then refresh system detection before continuing.
@@ -395,9 +531,11 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
                 </p>
               </div>
               <div className="grid gap-3 rounded border border-[#2D333B] bg-[#171A1E] p-4 sm:grid-cols-2">
-                <div><div className="text-[11px] text-[#626D78]">Framework</div><div className="mt-1 text-[13px] text-[#F1F3F5]">{selectedFramework.name} · {config.language}</div></div>
+                <div><div className="text-[11px] text-[#626D78]">Project type</div><div className="mt-1 text-[13px] capitalize text-[#F1F3F5]">{config.projectType}</div></div>
+                <div><div className="text-[11px] text-[#626D78]">Stack</div><div className="mt-1 text-[13px] text-[#F1F3F5]">{config.projectType === 'api' ? 'Express API · TypeScript' : `${selectedFramework.name} · ${config.language}${config.projectType === 'fullstack' ? ' + Express API' : ''}`}</div></div>
                 <div><div className="text-[11px] text-[#626D78]">Package manager</div><div className="mt-1 text-[13px] text-[#F1F3F5]">npm</div></div>
-                <div className="sm:col-span-2"><div className="text-[11px] text-[#626D78]">Destination</div><div className="mt-1 break-all font-mono text-[12px] text-[#F1F3F5]">{projectPath}</div></div>
+                <div><div className="text-[11px] text-[#626D78]">Databases</div><div className="mt-1 text-[13px] text-[#F1F3F5]">{config.databases.length ? DATABASE_OPTIONS.filter((database) => config.databases.includes(database.id)).map((database) => database.name).join(', ') : 'None selected'}</div></div>
+                <div className="sm:col-span-2"><div className="text-[11px] text-[#626D78]">Destination</div><div className="mt-1 break-all font-mono text-[12px] text-[#F1F3F5]">{frontendProjectPath}</div>{config.projectType === 'fullstack' && <div className="mt-1 break-all font-mono text-[12px] text-[#F1F3F5]">{apiProjectPath}</div>}</div>
                 <div className="sm:col-span-2"><div className="text-[11px] text-[#626D78]">Selected packages</div><div className="mt-1 text-[12px] text-[#F1F3F5]">{selectedPackages.length ? selectedPackages.map((pkg) => `${pkg.npmName}@${pkg.version}`).join(', ') : 'None'}</div></div>
               </div>
 
@@ -435,7 +573,11 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
                   {job.error && <div role="alert" className="border-t border-[#DF7777]/30 px-4 py-3 text-[12px] text-[#DF7777]">{job.error}</div>}
                   {job.status === 'completed' && (
                     <div className="border-t border-[#65B9A5]/30 px-4 py-3 text-[12px] text-[#65B9A5]">
-                      Created at <span className="font-mono">{job.projectPath}</span>. Open it in your editor and run the project’s dev script to start working.
+                      Created at <span className="font-mono">{job.projectPath}</span>.
+                      {job.apiPath && job.apiPath !== job.projectPath && (
+                        <div className="mt-1">API project: <span className="font-mono">{job.apiPath}</span></div>
+                      )}
+                      <div className="mt-1 text-[#929BA5]">Run and open this project from Installed projects.</div>
                     </div>
                   )}
                 </div>

@@ -1,18 +1,16 @@
 export type ScreenId =
   | 'overview'
   | 'project-studio'
-  | 'packages'
   | 'runtimes'
-  | 'workflows'
-  | 'operations'
-  | 'integrations'
-  | 'recipes'
+  | 'tech-stack'
   | 'history'
-  | 'diagnostics'
-  | 'docs'
   | 'settings';
 
-export type FrameworkId = 'vite' | 'nextjs' | 'astro' | 'vue' | 'sveltekit';
+export type FrameworkId = 'vite' | 'nextjs' | 'astro' | 'vue' | 'sveltekit' | 'angular';
+export type ProjectType = 'frontend' | 'api' | 'fullstack';
+export type DatabaseId = 'postgresql' | 'mongodb' | 'mysql' | 'sqlite' | 'redis';
+export type FullStackLayout = 'workspace' | 'separate';
+export type ApiFrameworkId = 'express';
 export type ViteUiFramework = 'react' | 'vue' | 'svelte' | 'solid' | 'vanilla';
 export type LanguageId = 'typescript' | 'javascript';
 export type BuildCompilerId = 'swc' | 'standard';
@@ -109,6 +107,10 @@ export interface NpmPackageDetail {
 }
 
 export interface ProjectConfig {
+  projectType: ProjectType;
+  databases: DatabaseId[];
+  fullStackLayout: FullStackLayout;
+  apiFramework: ApiFrameworkId;
   framework: FrameworkId;
   viteUiFramework: ViteUiFramework;
   language: LanguageId;
@@ -176,8 +178,6 @@ export interface RuntimeInfo {
   name: string;
   installedVersion: string | null;
   selectedVersion: string;
-  latestVersion: string;
-  availableVersions: string[];
   status: StatusTone;
   binaryPath: string;
   manager: string;
@@ -191,7 +191,6 @@ export interface PackageManagerInfo {
   id: PackageManagerId;
   name: string;
   version: string;
-  latestVersion: string;
   lockfile: string;
   status: StatusTone;
   compatibleRuntimes: RuntimeId[];
@@ -228,19 +227,6 @@ export interface StudioPackage {
   isCustomNpm?: boolean;
 }
 
-export interface WorkflowNode {
-  id: string;
-  operationId: string;
-  title: string;
-  phase: ExecutionCommandStep['phase'];
-  command: string;
-  description: string;
-  dependsOn: string[];
-  enabled: boolean;
-  timeoutSec: number;
-  continueOnError: boolean;
-}
-
 export interface SavedRecipe {
   id: string;
   name: string;
@@ -268,6 +254,13 @@ export interface ExecutionStepState {
 export interface HistoryRecord {
   id: string;
   projectName: string;
+  projectType?: ProjectType;
+  databases?: DatabaseId[];
+  fullStackLayout?: FullStackLayout;
+  frontendPath?: string;
+  apiPath?: string;
+  workspacePath?: string;
+  apiFramework?: ApiFrameworkId;
   framework: FrameworkId;
   packageManager: PackageManagerId;
   directory: string;
@@ -275,7 +268,7 @@ export interface HistoryRecord {
   status: 'completed' | 'failed' | 'cancelled';
   durationSec: number;
   commandCount: number;
-  mode: 'Dry-Run Plan' | 'Simulated Execution' | 'Local Installation';
+  mode: 'Local Installation';
 }
 
 export type InspectorTarget =
@@ -290,7 +283,6 @@ export type InspectorTarget =
   | { type: 'devtools'; id: DevToolId }
   | { type: 'rotary'; key: 'devPort' | 'previewPort' | 'memoryLimitMb' | 'networkTimeoutSec' }
   | { type: 'package'; id: string }
-  | { type: 'workflow-node'; id: string }
   | { type: 'file-rename'; filePath?: string }
   | { type: 'execution' };
 
@@ -371,6 +363,8 @@ export interface StackPresetProfile {
   title: string;
   audience: string;
   keywords: string[];
+  projectType?: ProjectType;
+  databases?: DatabaseId[];
   recommendation: AiStackRecommendation;
 }
 
@@ -380,6 +374,11 @@ export interface AiPromptSynthesis {
 }
 
 export interface StudioSettings {
+  themeMode: 'dark' | 'semi-dark' | 'midnight' | 'forest' | 'ocean' | 'light';
+  bodyFont: 'IBM Plex Sans' | 'Inter' | 'system-ui';
+  accentFont: 'Plus Jakarta Sans' | 'Space Grotesk' | 'Inter';
+  fontSize: 13 | 14 | 15 | 16 | 17;
+  accentColor: string;
   defaultDirectory: string;
   preferredPackageManager: PackageManagerId;
   preferredRuntime: RuntimeId;

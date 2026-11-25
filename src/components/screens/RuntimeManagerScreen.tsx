@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { BarChart3, Check, ExternalLink, RefreshCw, Terminal } from 'lucide-react';
+import { AlertCircle, Check, ExternalLink, RefreshCw, Terminal } from 'lucide-react';
 import type {
   InspectorTarget,
-  PackageManagerId,
   PackageManagerInfo,
   RuntimeId,
   RuntimeInfo,
@@ -12,16 +11,14 @@ import { PackageManagerMark, RuntimeMark } from '../icons/BrandMarks';
 import { StatusIndicator } from '../controls/StatusIndicator';
 import { VersionSelector } from '../controls/VersionSelector';
 import { TechnicalMeter } from '../controls/TechnicalMeter';
-import { PackageManagerBenchmarkChart } from '../charts/StudioCharts';
 
 interface RuntimeManagerScreenProps {
   runtimes: RuntimeInfo[];
   systemProbe: SystemProbeResult | null;
   activeRuntimeId: RuntimeId;
-  activePackageManagerId?: PackageManagerId;
   onSelectActiveRuntime: (id: RuntimeId) => void;
   onUpdateRuntimeVersion: (id: RuntimeId, version: string) => void;
-  onUpgradeRuntime: (id: RuntimeId) => void;
+  onUpgradeRuntime: (id: RuntimeId, version: string) => Promise<void>;
   onProbeSystem: () => Promise<void>;
   packageManagers: PackageManagerInfo[];
   onInspect: (target: InspectorTarget) => void;
@@ -31,7 +28,6 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
   runtimes,
   systemProbe,
   activeRuntimeId,
-  activePackageManagerId,
   onSelectActiveRuntime,
   onUpdateRuntimeVersion,
   onUpgradeRuntime,
@@ -40,11 +36,16 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
   onInspect,
 }) => {
   const [rescanning, setRescanning] = useState(false);
+  const [updatingRuntimeId, setUpdatingRuntimeId] = useState<RuntimeId | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   const handleRescan = async () => {
     setRescanning(true);
+    setUpdateError(null);
     try {
       await onProbeSystem();
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : 'Local runtime probe failed.');
     } finally {
       setRescanning(false);
     }
@@ -55,6 +56,17 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
     : 'Awaiting probe…';
 
   const healthyCount = runtimes.filter((r) => r.status === 'installed').length;
+  const handleUpdate = async (runtime: RuntimeInfo) => {
+    setUpdatingRuntimeId(runtime.id);
+    setUpdateError(null);
+    try {
+      await onUpgradeRuntime(runtime.id, runtime.selectedVersion.trim());
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : 'Runtime update failed.');
+    } finally {
+      setUpdatingRuntimeId(null);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -64,7 +76,7 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
             Runtime Manager
           </h1>
           <p className="text-[13px] text-[#929BA5] mt-0.5">
-            Inspect detected JavaScript runtimes, active toolchain versions, and PATH binaries.
+            Inspect installed runtimes and enter a target version to update through the local runtime manager.
           </p>
         </div>
 
@@ -96,11 +108,7 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
               </div>
               <StatusIndicator
                 tone={healthyCount === runtimes.length ? 'installed' : 'attention'}
-                label={
-                  healthyCount === runtimes.length
-                    ? 'Environment Healthy'
-                    : '1 Runtime Update Available'
-                }
+                label={healthyCount === runtimes.length ? 'Environment Healthy' : 'Runtime Missing'}
               />
             </div>
 
@@ -150,11 +158,19 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
             />
           </section>
 
+          {updateError && (
+            <div role="alert" className="flex items-start gap-2 rounded border border-[#9D514D] bg-[#2A1D1D] px-3 py-2 text-[12px] text-[#F0A6A0]">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{updateError}</span>
+            </div>
+          )}
+
           {/* Runtime Panels */}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {runtimes.map((rt) => {
               const isActive = activeRuntimeId === rt.id;
-              const needsUpdate = rt.installedVersion !== rt.latestVersion;
+              const needsUpdate = rt.selectedVersion.trim() !== rt.installedVersion;
+              const isUpdating = updatingRuntimeId === rt.id;
 
               return (
                 <div
@@ -180,14 +196,11 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
                     </div>
 
                     <VersionSelector
-                      label="Managed Version"
+                      label="Target Version"
                       installedVersion={rt.installedVersion}
-                      latestVersion={rt.latestVersion}
                       selectedVersion={rt.selectedVersion}
-                      options={rt.availableVersions}
                       status={rt.status}
                       onChange={(v) => onUpdateRuntimeVersion(rt.id, v)}
-                      onUpgrade={() => onUpgradeRuntime(rt.id)}
                     />
 
                     <div className="bg-[#14171B] border border-[#262B32] rounded p-3 flex flex-col gap-1.5 text-[11.5px]">
@@ -259,11 +272,12 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onUpgradeRuntime(rt.id);
+                          void handleUpdate(rt);
                         }}
+                        disabled={!rt.installedVersion || !rt.selectedVersion.trim() || isUpdating}
                         className="px-3 py-2 rounded-[4px] bg-[#C7A46A] hover:bg-[#D2B27C] text-[#101214] text-[12px] font-semibold cursor-pointer transition-colors"
                       >
-                        Update
+                        {isUpdating ? 'Updating…' : rt.installedVersion ? 'Update' : 'Unavailable'}
                       </button>
                     )}
                   </div>
@@ -281,31 +295,12 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
               </h2>
             </div>
 
-            <div className="bg-[#1D2126] border border-[#343B43] rounded-[5px] p-4 flex flex-col gap-3 hardware-bezel">
-              <div className="flex items-center justify-between border-b border-[#2A3038] pb-2">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-[#C7A46A]" />
-                  <h3 className="text-[12px] font-semibold uppercase tracking-wider text-[#F1F3F5]">
-                    Install Latency Profile (Cold vs. Warm Cache)
-                  </h3>
-                </div>
-                <span className="font-mono text-[11px] text-[#626D78]">
-                  Active PM highlighted in brass
-                </span>
-              </div>
-              <PackageManagerBenchmarkChart
-                packageManagers={packageManagers}
-                activePmId={activePackageManagerId}
-              />
-            </div>
-
             <div className="bg-[#171A1E] border border-[#2D333B] rounded-[5px] overflow-hidden">
               <table className="w-full text-left border-collapse text-[12.5px]">
                 <thead>
                   <tr className="border-b border-[#2A3038] bg-[#14171B] text-[11px] font-mono uppercase text-[#626D78]">
                     <th className="py-2.5 px-4 font-medium">Manager</th>
                     <th className="py-2.5 px-4 font-medium">Installed</th>
-                    <th className="py-2.5 px-4 font-medium">Latest</th>
                     <th className="py-2.5 px-4 font-medium">Lockfile</th>
                     <th className="py-2.5 px-4 font-medium">Status</th>
                     <th className="py-2.5 px-4 font-medium text-right">Reference</th>
@@ -324,8 +319,7 @@ export const RuntimeManagerScreen: React.FC<RuntimeManagerScreenProps> = ({
                           <span>{pm.name}</span>
                         </div>
                       </td>
-                      <td className="py-2.5 px-4 font-mono text-[#F1F3F5]">v{pm.version}</td>
-                      <td className="py-2.5 px-4 font-mono text-[#929BA5]">v{pm.latestVersion}</td>
+                      <td className="py-2.5 px-4 font-mono text-[#F1F3F5]">{pm.version || '—'}</td>
                       <td className="py-2.5 px-4 font-mono text-[#C7A46A]">{pm.lockfile}</td>
                       <td className="py-2.5 px-4">
                         <StatusIndicator tone={pm.status} compact />

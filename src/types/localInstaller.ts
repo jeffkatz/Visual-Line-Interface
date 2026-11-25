@@ -1,4 +1,13 @@
-import type { FrameworkId, LanguageId, PackageManagerId, ViteUiFramework } from './studio';
+import type {
+  ApiFrameworkId,
+  DatabaseId,
+  FrameworkId,
+  FullStackLayout,
+  LanguageId,
+  PackageManagerId,
+  ProjectType,
+  ViteUiFramework,
+} from './studio';
 
 export interface ProjectInstallPackage {
   name: string;
@@ -9,6 +18,10 @@ export interface ProjectInstallPackage {
 export interface ProjectInstallInput {
   directory: string;
   projectName: string;
+  projectType: ProjectType;
+  databases: DatabaseId[];
+  fullStackLayout: FullStackLayout;
+  apiFramework: ApiFrameworkId;
   framework: FrameworkId;
   viteUiFramework: ViteUiFramework;
   language: LanguageId;
@@ -27,7 +40,17 @@ export interface ProjectInstallStep {
 export interface ProjectInstallJob {
   id: string;
   status: 'running' | 'completed' | 'failed';
+  projectName: string;
+  projectType: ProjectType;
+  databases: DatabaseId[];
+  fullStackLayout: FullStackLayout;
+  apiFramework: ApiFrameworkId;
+  framework: FrameworkId;
+  packageManager: PackageManagerId;
   projectPath: string;
+  frontendPath?: string;
+  apiPath?: string;
+  workspacePath?: string;
   currentStep: string | null;
   steps: ProjectInstallStep[];
   startedAt: string;

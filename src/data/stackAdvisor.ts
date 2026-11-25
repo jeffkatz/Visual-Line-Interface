@@ -201,6 +201,102 @@ export const CURATED_STACK_RECOMMENDATIONS: StackPresetProfile[] = [
       },
     },
   },
+  {
+    id: 'mern',
+    title: 'MERN',
+    audience: 'MongoDB · Express · React · Node.js',
+    keywords: ['mern', 'mongodb', 'mongo', 'express', 'react', 'node'],
+    projectType: 'fullstack',
+    databases: ['mongodb'],
+    recommendation: {
+      summary: 'A React frontend with an Express API, MongoDB driver, and TypeScript on Node.js.',
+      rationale: [
+        'Keeps database credentials and database access on the API server, not in browser code.',
+        'MongoDB is a natural fit for document-shaped application data.',
+      ],
+      warnings: ['Provide MONGODB_URI in the generated API .env file before starting the API.'],
+      suggestedConfig: {
+        framework: 'vite',
+        viteUiFramework: 'react',
+        language: 'typescript',
+        compiler: 'swc',
+        styling: 'tailwind',
+        testing: 'vitest',
+        devTools: ['eslint', 'prettier'],
+        packageManager: 'npm',
+        runtime: 'node',
+        projectName: 'mern-app',
+        selectedPackageIds: ['tailwindcss', 'typescript', 'eslint', 'prettier', 'vitest'],
+        directoryLayoutMode: 'standard',
+        directoryNamingConvention: 'kebab-case',
+        devPort: 5173,
+      },
+    },
+  },
+  {
+    id: 'pern',
+    title: 'PERN',
+    audience: 'PostgreSQL · Express · React · Node.js',
+    keywords: ['pern', 'postgres', 'postgresql', 'express', 'react', 'node'],
+    projectType: 'fullstack',
+    databases: ['postgresql'],
+    recommendation: {
+      summary: 'A React frontend with an Express API and PostgreSQL connection pool.',
+      rationale: [
+        'PostgreSQL provides relational integrity and flexible SQL for application data.',
+        'The API layer keeps database credentials off the client.',
+      ],
+      warnings: ['Provide DATABASE_URL in the generated API .env file before starting the API.'],
+      suggestedConfig: {
+        framework: 'vite',
+        viteUiFramework: 'react',
+        language: 'typescript',
+        compiler: 'swc',
+        styling: 'tailwind',
+        testing: 'vitest',
+        devTools: ['eslint', 'prettier'],
+        packageManager: 'npm',
+        runtime: 'node',
+        projectName: 'pern-app',
+        selectedPackageIds: ['tailwindcss', 'typescript', 'eslint', 'prettier', 'vitest'],
+        directoryLayoutMode: 'standard',
+        directoryNamingConvention: 'kebab-case',
+        devPort: 5173,
+      },
+    },
+  },
+  {
+    id: 'mean',
+    title: 'MEAN',
+    audience: 'MongoDB · Express · Angular · Node.js',
+    keywords: ['mean', 'mongodb', 'mongo', 'express', 'angular', 'node'],
+    projectType: 'fullstack',
+    databases: ['mongodb'],
+    recommendation: {
+      summary: 'An Angular TypeScript frontend with an Express API and MongoDB.',
+      rationale: [
+        'Angular provides a structured, TypeScript-first frontend.',
+        'MongoDB access is isolated in the Express API.',
+      ],
+      warnings: ['Provide MONGODB_URI in the generated API .env file before starting the API.'],
+      suggestedConfig: {
+        framework: 'angular',
+        viteUiFramework: 'react',
+        language: 'typescript',
+        compiler: 'standard',
+        styling: 'plain-css',
+        testing: 'none',
+        devTools: [],
+        packageManager: 'npm',
+        runtime: 'node',
+        projectName: 'mean-app',
+        selectedPackageIds: ['typescript'],
+        directoryLayoutMode: 'standard',
+        directoryNamingConvention: 'kebab-case',
+        devPort: 4200,
+      },
+    },
+  },
 ];
 
 export function recommendStackOffline(
@@ -316,7 +412,7 @@ export function buildProjectCreationPrompt(params: {
 
   const selectedPackages = packages.filter((p) => config.selectedPackageIds.includes(p.id));
   const renamedFiles = manifest.filter((m) => m.targetPath !== m.originalPath);
-  const safeName = config.projectName.trim() || 'my-awesome-app';
+  const safeName = config.projectName.trim() || 'new-project';
 
   const stackLines = [
     `- **Project Slug**: \`${safeName}\``,

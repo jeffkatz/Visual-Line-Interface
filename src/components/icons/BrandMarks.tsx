@@ -81,6 +81,13 @@ export const FrameworkMark: React.FC<{ id: FrameworkId; className?: string; acti
           />
         </svg>
       );
+    case 'angular':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+          <path d="M12 2.5L21 5.7L19.6 18.1L12 21.5L4.4 18.1L3 5.7L12 2.5Z" stroke={stroke} strokeWidth="1.5" />
+          <path d="M12 6.2L7.4 16.8H9.7L10.6 14.5H13.4L14.3 16.8H16.6L12 6.2ZM12 10.1L12.7 12.1H11.3L12 10.1Z" fill={active ? '#C7A46A' : '#929BA5'} />
+        </svg>
+      );
   }
 };
 

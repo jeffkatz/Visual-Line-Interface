@@ -44,6 +44,7 @@ test('validateProjectCompatibility detects duplicate target paths in bulk rename
 test('buildScaffoldManifest and getPendingFileRenames apply feature-sliced layout & kebab-case rules', () => {
   const cfg: ProjectConfig = {
     ...DEFAULT_PROJECT_CONFIG,
+    projectName: 'feature-layout-test',
     framework: 'vite',
     viteUiFramework: 'react',
     directoryLayoutMode: 'feature-sliced',
@@ -54,14 +55,14 @@ test('buildScaffoldManifest and getPendingFileRenames apply feature-sliced layou
   const manifest = buildScaffoldManifest(cfg);
   const shellEntry = manifest.find((f) => f.id === 'file-shell');
   assert.ok(shellEntry, 'expected AppShell manifest entry');
-  assert.equal(shellEntry.targetPath, 'src/features/my-awesome-app/components/app-shell.tsx');
+  assert.equal(shellEntry.targetPath, 'src/features/feature-layout-test/components/app-shell.tsx');
 
   const pending = getPendingFileRenames(cfg);
   assert.ok(
     pending.some(
       (r) =>
         r.from === 'src/components/AppShell.tsx' &&
-        r.to === 'src/features/my-awesome-app/components/app-shell.tsx'
+        r.to === 'src/features/feature-layout-test/components/app-shell.tsx'
     )
   );
 });
@@ -109,6 +110,7 @@ test('buildExecutionPlan adapts shell syntax for zsh vs powershell and includes 
 test('buildGeneratedPackageJson and buildScaffoldConfigFiles synthesize concrete config manifests', () => {
   const cfg: ProjectConfig = {
     ...DEFAULT_PROJECT_CONFIG,
+    projectName: 'manifest-test-app',
     framework: 'vite',
     viteUiFramework: 'react',
     compiler: 'swc',
@@ -125,7 +127,7 @@ test('buildGeneratedPackageJson and buildScaffoldConfigFiles synthesize concrete
     scripts: Record<string, string>;
     devDependencies: Record<string, string>;
   };
-  assert.equal(pkgJson.name, 'my-awesome-app');
+  assert.equal(pkgJson.name, 'manifest-test-app');
   assert.equal(pkgJson.scripts.dev, 'vite --port 5180');
   assert.ok(pkgJson.devDependencies['@biomejs/biome'], 'expected @biomejs/biome in devDependencies');
 
@@ -147,10 +149,11 @@ test('recommendStackOffline and buildProjectCreationPrompt operate deterministic
   assert.equal(rec.suggestedConfig.testing, 'playwright');
   assert.ok(rec.suggestedConfig.devTools.includes('biome'));
 
-  const manifest = buildScaffoldManifest(DEFAULT_PROJECT_CONFIG);
-  const plan = buildExecutionPlan(DEFAULT_PROJECT_CONFIG, STUDIO_PACKAGES, 'zsh');
+  const promptConfig = { ...DEFAULT_PROJECT_CONFIG, projectName: 'prompt-test-app' };
+  const manifest = buildScaffoldManifest(promptConfig);
+  const plan = buildExecutionPlan(promptConfig, STUDIO_PACKAGES, 'zsh');
   const prompt = buildProjectCreationPrompt({
-    config: DEFAULT_PROJECT_CONFIG,
+    config: promptConfig,
     packages: STUDIO_PACKAGES,
     executionPlan: plan,
     manifest,
@@ -158,6 +161,6 @@ test('recommendStackOffline and buildProjectCreationPrompt operate deterministic
   });
 
   assert.ok(prompt.includes('Visual Line Interface'), 'expected Visual Line Interface header in generated prompt');
-  assert.ok(prompt.includes('my-awesome-app'), 'expected project name in generated prompt');
+  assert.ok(prompt.includes('prompt-test-app'), 'expected project name in generated prompt');
   assert.ok(prompt.includes('Visual developer workstation console'), 'expected goal in generated prompt');
 });

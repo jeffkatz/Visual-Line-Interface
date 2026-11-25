@@ -1,5 +1,7 @@
 # Visual Line Interface — Codebase Audit, Fixes & Implementation Roadmap
 
+> Historical audit notes describe earlier versions of the interface. The current workspace map is maintained in the README; the former Workflow Builder, Integration Registry, and Package & Library Studio are no longer active screens.
+
 ## 1. Constructive Codebase Criticism & Applied Fixes
 
 During a full architectural and UX review of Visual Line Interface (originally launched as Visual CLI Studio), the following concrete gaps and rough edges were identified and resolved:
@@ -42,19 +44,16 @@ During a full architectural and UX review of Visual Line Interface (originally l
 - Industrial dark palette (`#101214` / `#171A1E` / `#1D2126` / `#C7A46A` brass / `#65B9A5` green) with `Plus Jakarta Sans`, `IBM Plex Sans`, and `JetBrains Mono` typography.
 - Global `Cmd+K` / `Ctrl+K` **Command & Documentation Palette** for instant navigation, framework switching, command copying, and opening official documentation.
 
-### Project Studio & Bulk File Renaming
-- Foundation selector (`Vite`, `Next.js`, `Astro`, `Vue`, `SvelteKit`) with live compatibility checks and official doc links.
-- Segmented selectors and rotary dial controls (`RotaryKnob`) for Dev Port, Preview Port, Node Heap Limit, and Fetch Timeout.
-- **Bulk File Rename** engine (`BulkFileRenamePanel`) supporting directory layout modes (`standard`, `feature-sliced`, `src-flat`), naming conventions (`kebab-case`, `camelCase`, `PascalCase`, `snake_case`), bulk prefix/suffix rules, find/replace regex/text transforms, per-file inline overrides, collision/invalid-path validation, and automated `mkdir` + `mv` CLI generation.
-- Generated Execution Plan surface with **Commands** (sequence or raw), synthesized **Config Files** (`vite.config.*`, `next.config.*`, `astro.config.mjs`, `svelte.config.js`, `tsconfig.json`/`jsconfig.json`, target CSS, `biome.json`, `eslint.config.js`, `.prettierrc`, `vitest.config.*`, `playwright.config.*`), live **`package.json`**, post-rename **`File Tree`**, and **`Create Prompt`** preview tabs, per-step copy, `.sh`/`.ps1` script export, and optional preflight confirmation modal.
+- **Create New Project**: Four-step frontend, Express API, or full-stack setup with framework and optional package selection; Angular is supported alongside the existing frontend templates.
+- **Installed projects**: Persistent install history with run/stop actions on an OS-allocated free port and editor launch actions for supported local editors.
+- **Analog controls**: UI SDK behavior primitives provide accessible switch and segmented-control interactions while preserving the custom workstation styling.
 
 ### Supporting Workspaces, Live Probing & Persistence
-- **Overview**: Workstation readiness summary, Recharts pipeline breakdown & duration trend charts, and one-click recipe loading.
-- **Package & Library Studio**: Search, capability-mode filtering (`Full Integration Setup` vs `Package Only`), category filters, **live `registry.npmjs.org` search & metadata import** (`/api/npm/search`, `/api/npm/package`) with version pinning, official Docs & npm links, and empty-filter reset.
-- **Runtime Manager & Diagnostics**: Live host probing (`/api/system/probe`) for OS, CPU arch, `PATH` binaries (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`, `git`), and real TCP port binding checks for `devPort` and `previewPort`.
-- **Workflow Builder**: Dependency-ordered pipeline editor with block reordering, enable/disable toggles, validation warnings, **Sync from Studio**, and persistent saving.
-- **Operations Centre**: Simulated dry-run step runner with pause/resume/cancel, simulated failure injection & retry recovery, Recharts step timing comparison, live log console, optional AI troubleshooting, and persistent history logging.
-- **Secondary Screens & Tests**: Integration Registry, Project Recipes, Installation History, Live Environment Diagnostics, Docs & Tutorial, Workstation Settings (7 AI providers), and an automated unit test suite (`npm test` covering compatibility rules, bulk-rename alignment, config file synthesis, and offline prompts).
+- **Overview**: Local workspace summary, setup guidance, recent installations, and one-click project creation.
+- **Runtime Manager & Diagnostics**: Live host probing (`/api/system/probe`) for OS, CPU arch, and `PATH` binaries; update Node through nvm/fnm/Volta, Deno through its self-updater, and Bun through stable/canary channels.
+- **Tech Stack & Settings**: Curated stack recommendations, theme controls, About information, and environment diagnostics in Settings.
+- **Database integrations**: Generated API driver dependencies, connection helpers, and `.env.example` templates for PostgreSQL, MongoDB, MySQL, SQLite, and Redis. Database services are not provisioned.
+- **Tests**: Automated unit tests (`npm test`) cover compatibility rules, installer safety, database scaffolding, project actions, runtime updates, config synthesis, and offline prompts.
 
 ---
 

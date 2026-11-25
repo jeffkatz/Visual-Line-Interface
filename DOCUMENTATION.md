@@ -1,6 +1,6 @@
 # Visual Line Interface — Complete User Documentation & Tutorial
 
-**Visual Line Interface** is a developer environment workstation that transforms command-line scaffolding, runtime management, dependency curation, directory restructuring, and workflow execution into an inspectable, hardware-inspired visual console.
+**Visual Line Interface** is a developer environment workstation that transforms project scaffolding, runtime management, and local project actions into an inspectable, hardware-inspired visual console.
 
 Every visual control maps directly to deterministic CLI flags, manifests, and project creation prompts—and works **100% offline without AI** while offering **optional AI enhancements** across OpenRouter, Google Gemini, OpenAI, Anthropic Claude, Groq, Mistral, and local Ollama.
 
@@ -21,24 +21,24 @@ Every visual control maps directly to deterministic CLI flags, manifests, and pr
 
 ## 1. Interface Anatomy
 
-Visual Line Interface uses a compact primary navigation for **Create project**, **Packages**, and **Install history**. Less frequently used tools are grouped under **More tools**.
+Visual Line Interface places **Overview**, **Create New Project**, and **Installed projects** at the top of the primary navigation. Less frequently used tools are grouped under **More tools**.
 
 ```text
 ┌──────────────────┬─────────────────────────────────────────┬──────────────────────┐
 │  LEFT SIDEBAR    │            MAIN WORKSPACE               │  RIGHT INSPECTOR     │
 │                  │                                         │  (Collapsible)       │
-│ • Create project │ • Four-step local installation wizard  │ • Local host status  │
-│ • Packages       │ • Framework, destination, packages      │ • Advanced tools     │
-│ • Install history│   and real installation progress        │   under More tools  │
+│ • Overview       │ • Frontend, API, or full-stack setup     │ • Local host status  │
+│ • Create New     │ • Framework, destination, packages      │ • Advanced tools     │
+│ • Installed      │ • Install progress and project actions  │   under More tools  │
 │ • More tools     │                                         │                      │
 └──────────────────┴─────────────────────────────────────────┴──────────────────────┘
 ```
 
-- **Left Sidebar**: Keeps the main setup, packages, and install history visible; opens secondary workspaces from **More tools**.
+- **Left Sidebar**: Keeps Overview, project creation, and installed-project actions visible; opens secondary workspaces from **More tools**.
 - **Main Workspace**: The project setup flow is the default screen. Advanced previews and settings remain available separately.
 - **Local execution**: A local Node.js server launches allowlisted npm CLI operations. Browser JavaScript does not receive arbitrary shell access.
 
-> **Scope note:** Real installation currently uses npm and creates projects with official framework scaffolds. Optional packages are installed at their pinned versions; the legacy workflow runner and bulk-rename/configuration previews are not applied by the real installer.
+> **Scope note:** Real installation currently uses npm and creates projects with official framework scaffolds. Optional packages are installed at their pinned versions; bulk-rename/configuration previews are not applied by the real installer.
 
 ---
 
@@ -46,21 +46,21 @@ Visual Line Interface uses a compact primary navigation for **Create project**, 
 
 Create and install a project locally in four steps:
 
-### Step 1 — Choose a framework
-Open **Create project**, select Vite, Next.js, Astro, Vue, or SvelteKit, choose a Vite template when applicable, and pick JavaScript or TypeScript.
+### Step 1 — Choose a project and framework
+Open **Create New Project** and choose frontend-only, API-only, or full-stack. Frontend options include Vite, Next.js, Astro, Vue, SvelteKit, and Angular. API projects use Express + TypeScript; full-stack offers a single workspace or sibling project folders.
 
 ### Step 2 — Select the destination
-Enter a project folder name and click **Select a local folder**. The app opens the operating system's folder picker. It creates a new project subfolder inside the selected parent; it will not overwrite an existing destination.
+Enter a project name and click **Select a local folder**. The app opens the operating system's folder picker and shows the exact resulting paths. It will not overwrite an existing destination.
 
 ### Step 3 — Review packages
-The real installer currently uses **npm**. Select optional packages and review their pinned versions. Node.js with npm must be available to the local server.
+The installer uses **npm**. Choose optional packages compatible with the selected frontend framework; Express API starters include Express, CORS, and dotenv. Node.js with npm must be available to the local server.
 
 ### Step 4 — Review and install
-Check the framework, packages, and full destination path, then click **Install project**. The local server runs the framework scaffold and npm install steps, streams bounded process output into the progress panel, and records the result in **Install history**.
+Review the stack, optional packages, and destination, then click **Install project**. The local server runs the scaffold and npm install steps, streams bounded process output into the progress panel, and records the result in **Installed projects**.
 
 The app must be running on the same computer where the project should be created. A remote browser cannot select a local absolute path or start a local CLI. The local server binds to loopback and accepts same-origin local install actions only.
 
-**Important:** Workflow Builder and Dry-run simulator remain previews and do not execute custom commands. Bulk rename and generated-config previews are not yet applied by the real installer.
+Optional database selections add drivers, connection helpers, and a `.env.example` to API/full-stack projects. No database service is installed or provisioned; configure and start the database separately. Installed projects start on an OS-allocated local port; the chosen port is shown in the project run controls.
 
 ---
 
@@ -104,24 +104,18 @@ These rename operations are not applied by the real local installer yet; the off
 
 | Workspace | Purpose |
 | :--- | :--- |
-| **Overview** | Active draft summary, runtime readiness meters, Recharts **Pipeline Phase Breakdown** & **Recorded Build Duration Trend**, quick-load recipes, and recent runs. |
-| **Create project** | Four-step wizard for choosing a framework, selecting a local destination, reviewing packages, and running the local npm install. |
-| **Package & Library Studio** | Searchable curated catalog + live `registry.npmjs.org` search, version pinning, peer dependency & license inspection, and official Docs & npm links. |
-| **Runtime Manager** | Probes live host OS, CPU arch, `PATH` binaries (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`), and compares Cold vs. Warm cache latency via Recharts. |
-| **Workflow Builder** | Visual dependency-ordered pipeline plan editor. Its run action is simulated and does not execute commands. |
-| **Dry-run simulator** | Displays simulated progress and plan output; separate from actual project installation. |
-| **Integration Registry** | Toggle deeply integrated tooling (`Tailwind CSS`, `TypeScript`, `ESLint`, `Prettier`, `Biome`, `Vitest`, `Playwright`, `React Router`, `shadcn/ui`). |
-| **Project Recipes** | Save, inspect, reload, and delete reusable project configurations in `localStorage`. |
-| **Installation History** | Local record of real project installs and legacy simulated runs. |
-| **Diagnostics** | Runs `/api/system/probe` for live Node.js, package manager, Git CLI, and TCP port binding (`devPort` / `previewPort`) preflight verification. |
-| **Docs & Tutorial** | Built-in interactive walkthrough checklist, control reference, and live codebase architecture viewer. |
-| **Settings** | Workstation defaults (`defaultDirectory`, `shellTarget`, `knobSensitivity`, `confirmBeforeExecution`) and **AI Provider & Model Routing**. |
+| **Overview** | Runtime readiness, recommended Tech Stacks, project setup entry points, and recent installations. |
+| **Create New Project** | Four-step wizard for frontend, API, and full-stack scaffolds; Angular and other frontend frameworks; optional PostgreSQL, MongoDB, MySQL, SQLite, or Redis driver integrations and environment templates. Database services are not provisioned. |
+| **Installed projects** | Interactive local project list with run/stop controls, free-port URLs, and available editor launch options. |
+| **Runtime Manager** | Probes live host OS, CPU arch, and `PATH` binaries (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`). Node updates require nvm, fnm, or Volta; Deno accepts pinned versions; Bun supports stable/canary updates. |
+| **Tech Stack** | Browse and apply recommended combinations such as MERN, PERN, and MEAN. |
+| **Settings** | Configure theme mode, accent, fonts, text size, workstation defaults, AI providers, and environment diagnostics. Diagnostics run `/api/system/probe` for runtime, package manager, Git CLI, and port availability. |
 
 ---
 
 ## 6. Hardware Controls & Keyboard Shortcuts
 
-- **`⌘K` / `Ctrl+K`**: Open the **Command & Docs Palette** from anywhere to jump screens, switch frameworks, copy generated CLI scripts, or open official documentation.
+- **`⌘K` / `Ctrl+K`**: Open the **Command & Docs Palette** from anywhere to jump screens, switch frameworks, copy generated CLI scripts, or open official framework and toolchain references.
 - **Rotary Knobs**: Click-and-drag vertically, scroll mouse wheel, press `ArrowUp`/`ArrowDown`/`PageUp`/`PageDown`, or click the numeric value to enter an exact number. Knob sensitivity (`precision`, `standard`, `fast`) is configurable in **Settings**.
 - **Collapsible Right Inspector**: Starts collapsed to reduce setup clutter; expand it via the right-rail button when needed.
 

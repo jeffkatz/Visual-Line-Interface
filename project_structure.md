@@ -28,10 +28,14 @@
 ├── vite.config.ts                        # Vite 8 + React + Tailwind v4 plugin config (HMR disabled via DISABLE_HMR)
 ├── server.ts                             # Full-stack Express server and local-only API routes
 ├── server/
-│   └── localInstaller.ts                 # Native folder selection and validated npm install jobs
+│   ├── localInstaller.ts                 # Native folder selection and validated frontend/API scaffolding
+│   ├── projectActions.ts                 # Free-port project runs, stop actions, and editor launch
+│   └── runtimeManager.ts                 # Validated local runtime version manager commands
 ├── tests/
 │   ├── studio.test.ts                    # Preview catalog, validation, config synthesis & prompt tests
-│   └── localInstaller.test.ts            # Installer validation and destination safety tests
+│   ├── localInstaller.test.ts            # Frontend/API scaffolding and destination safety tests
+│   ├── projectActions.test.ts            # Free-port selection, run arguments, and request validation
+│   └── runtimeManager.test.ts            # Runtime update validation and fixed command argument tests
 ├── README.md                             # Project overview, author credits, and origin prompt
 ├── DOCUMENTATION.md                      # End-user manual and installation walkthrough
 ├── PROJECT_AUDIT_AND_ROADMAP.md          # Implementation audit & future native daemon roadmap
@@ -42,7 +46,8 @@
     ├── App.tsx                           # Root state container, host probe sync, localStorage migration, screen router
     ├── types/
     │   ├── studio.ts                     # Project catalog, preview, probes, npm results & AI contracts
-    │   └── localInstaller.ts             # Shared local install request and job types
+    │   ├── localInstaller.ts             # Shared local install request and job types
+    │   └── projectActions.ts             # Local run, stop, editor, and session contracts
     ├── data/
     │   ├── studioCatalog.ts              # Frameworks, runtimes, packages, CLI/config synthesizers & validators
     │   ├── stackAdvisor.ts               # Offline curated stack profiles, heuristic recommender, & Project Creation Prompt builder
@@ -50,17 +55,19 @@
     ├── services/
     │   ├── aiClient.ts                   # Typed browser fetch client calling /api/ai/* (zero keys in browser)
     │   ├── systemClient.ts               # Typed browser fetch client calling /api/system/probe & /api/npm/*
-    │   └── localInstallerClient.ts       # Folder-picker, installation, and progress API client
+    │   ├── runtimeClient.ts              # Local runtime update action client
+    │   ├── localInstallerClient.ts       # Folder-picker, installation, and progress API client
+    │   └── projectActionsClient.ts       # Local project run, stop, and editor actions
     └── components/
         ├── charts/
-        │   └── StudioCharts.tsx          # Recharts visualizations (PipelinePhase, HistoryDuration, ExecutionTiming, PMBenchmark)
+        │   └── StudioCharts.tsx          # Recharts visualizations (PipelinePhase, HistoryDuration, ExecutionTiming)
         ├── controls/
         │   ├── MechanicalToggle.tsx      # Hardware-styled switch control
         │   ├── RotaryKnob.tsx            # Interactive SVG/pointer/keyboard/wheel numeric dial
         │   ├── SegmentedSelector.tsx     # Multi-option segmented button bar
         │   ├── StatusIndicator.tsx       # Non-pill semantic status readout (icon + label)
         │   ├── TechnicalMeter.tsx        # Segmented LED-style capacity meter
-        │   └── VersionSelector.tsx       # Channel/version dropdown with installed vs. latest badge
+        │   └── VersionSelector.tsx       # Runtime target-version input and installed-version readout
         ├── icons/
         │   └── BrandMarks.tsx            # Custom SVG brand/framework/runtime/PM icons & StudioLogoMark
         ├── layout/
@@ -69,14 +76,10 @@
         ├── studio/
         │   └── CommandPalette.tsx        # Global Cmd+K / Ctrl+K quick-jump and official docs search
         └── screens/
-            ├── ProjectSetupWizard.tsx    # Primary four-step framework, folder, package, and install flow
-            ├── OverviewScreen.tsx        # Workstation summary, history charts, and setup entry point
-            ├── PackageStudioScreen.tsx   # Searchable dependency catalog and package selection
-            ├── RuntimeManagerScreen.tsx  # Runtime version channels & PM Cold/Warm benchmark chart
-            ├── WorkflowBuilderScreen.tsx # Advanced workflow preview editor; does not execute commands
-            ├── OperationsCentreScreen.tsx# Dry-run simulator; does not execute commands
-            ├── DocumentationScreen.tsx   # In-app interactive tutorial, control reference, & codebase map
-            └── SecondaryManagementScreens.tsx # IntegrationRegistry, ProjectRecipes, InstallationHistory, Diagnostics, Settings
+            ├── ProjectSetupWizard.tsx    # Four-step frontend/API/full-stack project setup and install flow
+            ├── OverviewScreen.tsx        # Local toolchain status, setup summary, and recent installations
+            ├── RuntimeManagerScreen.tsx  # Live runtime probe and version update controls
+            └── SecondaryManagementScreens.tsx # Tech Stack, Installed projects, Settings & diagnostics
 ```
 
 ---
@@ -84,26 +87,29 @@
 ## 3. Core Architectural Principles & Data Flow
 
 ### 3.1 Local Project Installation
-The primary Create project flow sends a typed request from `ProjectSetupWizard` through `localInstallerClient` to the loopback-only Express server. The server validates the project and destination, builds fixed scaffold arguments, and invokes npm's JavaScript CLI through Node without a shell:
+The Create New Project flow sends a typed request from `ProjectSetupWizard` through `localInstallerClient` to the loopback-only Express server. The server validates the project and destination, builds fixed scaffold arguments, and invokes npm's JavaScript CLI through Node without a shell:
 
 ```text
 ProjectSetupWizard
   ├── POST /api/local/choose-directory ──▶ native folder picker
   └── POST /api/projects/install ────────▶ validated install job
-                                          ├── framework scaffold
+                                          ├── frontend framework or Express API scaffold, optionally including database drivers and env templates
                                           ├── npm dependency install
                                           └── optional selected packages
   └── GET /api/projects/install/:id ─────▶ progress and terminal result
+
+Installed projects
+  ├── POST /api/projects/:id/run ─────────▶ start on an OS-allocated free port
+  ├── POST /api/projects/:id/stop ────────▶ stop the tracked local process
+  └── POST /api/projects/:id/open ────────▶ open in an available editor
 ```
 
-`src/data/studioCatalog.ts` still supports the separate advanced preview tools. Its generated commands and configuration previews are not executed by those screens.
+`src/data/studioCatalog.ts` provides framework metadata, optional package recommendations, and project plan previews. Database selections add application drivers, connection helpers, and `.env.example` files; the installer does not provision database services.
 
 ### 3.2 `localStorage` Persistence Keys (`src/App.tsx`)
-All four keys migrate transparently from legacy `visual_cli_studio_*_v1` keys via `readStorageWithMigration`:
-- `visual_line_interface_recipes_v1`: Saved `SavedRecipe[]` (merged defensively with `DEFAULT_PROJECT_CONFIG` on load).
+Settings and installation history migrate transparently from their legacy `visual_cli_studio_*_v1` keys via `readStorageWithMigration`:
 - `visual_line_interface_settings_v1`: `StudioSettings` (merged with `DEFAULT_SETTINGS`; validates `aiProvider` & `aiModel` on boot).
-- `visual_line_interface_workflows_v1`: User-edited `WorkflowNode[]` pipeline.
-- `visual_line_interface_history_v1`: Recorded `HistoryRecord[]` execution runs.
+- `visual_line_interface_history_v1`: Real local project installation records; legacy simulated runs are filtered out.
 
 ### 3.3 Offline-First + Optional AI Design
 1. **Works 100% without AI**:
@@ -115,7 +121,7 @@ All four keys migrate transparently from legacy `visual_cli_studio_*_v1` keys vi
      - `'prompt'`: Synthesizes an enriched `AiPromptSynthesis` (`promptText`, `highlights`) from the active workspace state.
      - `'audit'`: Evaluates `ProjectConfig` + `CompatibilityIssue[]` + generated CLI commands.
      - `'rename'`: Proposes `AiRenameSuggestion` (`directoryLayoutMode`, `directoryNamingConvention`, relative `overrides`).
-     - `'troubleshoot'`: Analyzes a failed step + terminal logs in Operations Centre.
+     - `'troubleshoot'`: Analyzes local project setup or runtime issues.
    - All network calls gracefully fall back to deterministic local outputs if the provider is unavailable.
 
 ---
@@ -127,6 +133,7 @@ All four keys migrate transparently from legacy `visual_cli_studio_*_v1` keys vi
 - **Endpoints**:
   - `GET /api/health` — Returns `{ ok: true, timestamp }`.
   - `POST /api/local/choose-directory` — Opens a native folder picker for the local user.
+  - `POST /api/local/runtime/update` — Validates a runtime/version pair and invokes the matching local version manager/updater without a shell.
   - `POST /api/projects/install` — Validates and starts a real npm scaffold/install job; existing destination folders are not overwritten.
   - `GET /api/projects/install/:id` — Returns the install job status and captured output.
   - `GET /api/system/probe?devPort=...&previewPort=...` — Executes safe `execFile` version/path probes (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`, `git`), detects host OS/arch/`PATH`, and tests live TCP port availability via `net.createServer()`.
@@ -143,11 +150,11 @@ All four keys migrate transparently from legacy `visual_cli_studio_*_v1` keys vi
 - **Response Sanitization**: Every AI JSON output passes through `extractJsonObject`, `sanitizeRecommendation`, `sanitizeDiagnostic`, `sanitizeRenameSuggestion` (blocks `..`, spaces, leading `/`, and unknown keys), or `sanitizePromptSynthesis`. All outbound `fetch` calls use `AbortSignal.timeout(...)`.
 
 ### `src/types/studio.ts`
-Defines every domain union and interface (`ScreenId`, `FrameworkId`, `RuntimeId`, `PackageManagerId`, `FileNamingConvention`, `DirectoryLayoutMode`, `ProjectConfig`, `CompatibilityIssue`, `ExecutionCommandStep`, `GeneratedConfigFile`, `SystemProbeResult`, `NpmSearchPackage`, `NpmPackageDetail`, `StudioPackage`, `WorkflowNode`, `InspectorTarget`, `AiProviderId`, `AiStackRecommendation`, `AiDiagnosticResponse`, `AiRenameSuggestion`, `AiPromptSynthesis`, `StudioSettings`).
+Defines every domain union and interface (`ScreenId`, `FrameworkId`, `RuntimeId`, `PackageManagerId`, `FileNamingConvention`, `DirectoryLayoutMode`, `ProjectConfig`, `CompatibilityIssue`, `ExecutionCommandStep`, `GeneratedConfigFile`, `SystemProbeResult`, `RuntimeInfo`, `PackageManagerInfo`, `NpmSearchPackage`, `NpmPackageDetail`, `StudioPackage`, `InspectorTarget`, `AiProviderId`, `AiStackRecommendation`, `AiDiagnosticResponse`, `AiRenameSuggestion`, `AiPromptSynthesis`, `StudioSettings`).
 *Important naming note*: Use `FileNamingConvention` (`'kebab-case' | 'camelCase' | 'PascalCase' | 'snake_case'`) and `DirectoryLayoutMode` (`'standard' | 'feature-sliced' | 'domain-scoped'`).
 
 ### `src/data/studioCatalog.ts`
-- **Catalogs**: `FRAMEWORKS`, `INITIAL_RUNTIMES`, `INITIAL_PACKAGE_MANAGERS`, `STUDIO_PACKAGES`, `TOOLCHAIN_DOCS`, `INITIAL_RECIPES`, `INITIAL_WORKFLOW_NODES`, `OPERATION_LIBRARY_TEMPLATES`, `INITIAL_HISTORY`, `DEFAULT_PROJECT_CONFIG`, `DEFAULT_SETTINGS`.
+- **Catalogs**: Framework metadata, runtime/package-manager labels and docs, `STUDIO_PACKAGES`, `TOOLCHAIN_DOCS`, `DEFAULT_PROJECT_CONFIG`, and `DEFAULT_SETTINGS`. Runtime versions and installed status come from `/api/system/probe`.
 - **Naming & Path Helpers**: `splitStemAndCompoundExt` (preserves `.test.tsx`, `.module.css`, `.config.ts`, `.d.ts`), `toCaseStyle`, `matchesNamingConvention`, `computeConventionTargetPath`.
 - **Generators**:
   - `buildScaffoldManifest(config)` — Computes initial + renamed file paths (`ScaffoldFileEntry[]`).
@@ -163,18 +170,16 @@ Defines every domain union and interface (`ScreenId`, `FrameworkId`, `RuntimeId`
 - `buildProjectCreationPrompt({ config, packages, executionPlan, manifest, goal })`: Generates a full, deterministic Markdown prompt ready for coding agents or developers.
 
 ### `src/components/charts/StudioCharts.tsx`
-Four Recharts components styled to match `#101214` / `#1D2126` / `#C7A46A` / `#65B9A5`:
+Three Recharts components styled to match `#101214` / `#1D2126` / `#C7A46A` / `#65B9A5`:
 - `PipelinePhaseChart` (bar chart of estimated duration by execution phase)
 - `HistoryDurationChart` (area chart of recorded execution durations)
-- `ExecutionTimingChart` (grouped bar chart comparing baseline estimate vs. actual dry-run duration)
-- `PackageManagerBenchmarkChart` (cold vs. warm install profile highlighting active package manager)
 
 ---
 
 ## 5. Rules & Guardrails for Coding Agents
 
 1. **No Browser API Key Inputs or Client Secrets**: Never add UI inputs for API keys, never import `@google/genai` in `src/`, and never read private env vars via `VITE_*`. All keys stay in server `process.env`.
-2. **Keep Installation Honest and Local**: The setup wizard is the only real project installer. Preserve loopback/origin checks, fixed scaffold arguments, no-shell process execution, destination collision checks, and explicit job errors. Workflow Builder and Operations Centre are dry-run previews.
+2. **Keep Local Actions Honest and Safe**: Preserve loopback/origin checks, fixed scaffold arguments, no-shell process execution, destination collision checks, and explicit errors for project installs and runtime updates. Database integrations generate project code and environment templates only; they do not provision database services.
 3. **Node ESM Type Imports in `server.ts`**: Keep explicit `.ts` extensions on `import type` statements in `server.ts` (e.g. `import type { ... } from './src/types/studio.ts'`) so both `tsc --noEmit` (`allowImportingTsExtensions: true`) and Node v22+ native type stripping work.
 4. **Styling & Design System Rules**:
    - Use Tailwind CSS v4 utility classes; keep the `#101214` / `#171A1E` / `#1D2126` / `#252A30` + `#C7A46A` (brass) + `#65B9A5` (technical green) palette.

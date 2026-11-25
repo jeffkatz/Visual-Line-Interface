@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Blocks,
-  BookMarked,
   Check,
   Cpu,
+  Database,
   ExternalLink,
   History,
+  Layers,
   Play,
+  Palette,
+  Square,
   RefreshCw,
   Settings,
   Stethoscope,
-  Trash2,
 } from 'lucide-react';
 import type {
   AiProviderId,
@@ -19,155 +20,79 @@ import type {
   PackageManagerId,
   ProjectConfig,
   RuntimeId,
-  SavedRecipe,
+  StackPresetProfile,
   StudioPackage,
   StudioSettings,
   SystemProbeResult,
 } from '../../types/studio';
+import type { EditorId, ProjectRunSession, ProjectRunTarget } from '../../types/projectActions';
 import { AI_PROVIDERS } from '../../data/aiProviders';
+import { DATABASE_OPTIONS } from '../../data/databases';
+import { CURATED_STACK_RECOMMENDATIONS } from '../../data/stackAdvisor';
 import { fetchOpenRouterModels, testAiProvider } from '../../services/aiClient';
+import {
+  fetchProjectEditors,
+  fetchProjectRuns,
+  openProjectInEditor,
+  startProjectRun,
+  stopProjectRun,
+} from '../../services/projectActionsClient';
 import { StatusIndicator } from '../controls/StatusIndicator';
 import { MechanicalToggle } from '../controls/MechanicalToggle';
 import { SegmentedSelector } from '../controls/SegmentedSelector';
 
-/* 1. INTEGRATION REGISTRY */
-export const IntegrationRegistryScreen: React.FC<{
-  packages: StudioPackage[];
-  selectedIds: string[];
-  onToggleIntegration: (id: string) => void;
-}> = ({ packages, selectedIds, onToggleIntegration }) => {
-  const integrations = packages.filter((p) => p.hasFullIntegration);
-  return (
-    <div className="flex flex-col h-full">
-      <header className="px-6 py-4 border-b border-[#2A3038] bg-[#14171B]">
-        <h1 className="text-[20px] font-semibold tracking-tight text-[#F1F3F5] uppercase">
-          Integration Registry
-        </h1>
-        <p className="text-[13px] text-[#929BA5] mt-0.5">
-          Automated configuration recipes that scaffold config files and Vite/framework plugins.
-        </p>
-      </header>
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-[1060px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-          {integrations.map((item) => {
-            const active = selectedIds.includes(item.id);
-            return (
-              <div
-                key={item.id}
-                className="bg-[#1D2126] border border-[#343B43] rounded-[5px] p-4 flex flex-col justify-between gap-4 hardware-bezel"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Blocks className="w-4 h-4 text-[#C7A46A]" />
-                      <h3 className="text-[15px] font-semibold text-[#F1F3F5]">{item.name}</h3>
-                    </div>
-                    <StatusIndicator
-                      tone={active ? 'installed' : 'available'}
-                      label={active ? 'Active in Studio' : 'Available'}
-                      compact
-                    />
-                  </div>
-                  <p className="text-[12.5px] text-[#929BA5] mt-2">{item.configSummary}</p>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap gap-1.5 font-mono text-[11px] text-[#626D78]">
-                      {item.integrationFiles.map((f) => (
-                        <span key={f} className="px-2 py-0.5 rounded bg-[#101214] border border-[#262B32]">
-                          {f}
-                        </span>
-                      ))}
-                    </div>
-                    <a
-                      href={item.docsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 font-mono text-[11px] text-[#77A9DC] hover:text-[#F1F3F5] transition-colors shrink-0"
-                    >
-                      <span>Docs</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onToggleIntegration(item.id)}
-                  className={`px-3 py-2 rounded-[4px] border text-[12px] font-medium cursor-pointer transition-colors ${
-                    active
-                      ? 'bg-[#252A30] border-[#65B9A5] text-[#65B9A5]'
-                      : 'bg-[#171A1E] border-[#343B43] hover:border-[#C7A46A] text-[#F1F3F5]'
-                  }`}
-                >
-                  {active ? 'Enabled in Active Project' : 'Enable Integration'}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* 2. PROJECT RECIPES */
-export const ProjectRecipesScreen: React.FC<{
-  recipes: SavedRecipe[];
-  onLoadRecipe: (recipe: SavedRecipe) => void;
-  onDeleteRecipe: (id: string) => void;
-}> = ({ recipes, onLoadRecipe, onDeleteRecipe }) => (
+/* TECH STACK */
+export const TechStackScreen: React.FC<{
+  onApplyStack: (profile: StackPresetProfile) => void;
+}> = ({ onApplyStack }) => (
   <div className="flex flex-col h-full">
     <header className="px-6 py-4 border-b border-[#2A3038] bg-[#14171B]">
       <h1 className="text-[20px] font-semibold tracking-tight text-[#F1F3F5] uppercase">
-        Project Recipes
+        Tech Stack
       </h1>
       <p className="text-[13px] text-[#929BA5] mt-0.5">
-        Saved environment presets ready to load into Create project.
+        Explore practical combinations of the frontend, API, and database technologies this builder can create.
       </p>
     </header>
     <div className="flex-1 overflow-y-auto px-6 py-6">
-      <div className="max-w-[1060px] mx-auto flex flex-col gap-3">
-        {recipes.length === 0 ? (
-          <div className="p-8 text-center bg-[#171A1E] border border-[#2D333B] rounded-[5px] text-[#929BA5]">
-            No saved recipes yet. Use the Packages and Create project workspaces to build a new setup.
-          </div>
-        ) : (
-          recipes.map((rec) => (
+      <div className="mx-auto grid max-w-[1060px] gap-4 md:grid-cols-2">
+        {CURATED_STACK_RECOMMENDATIONS.map((profile) => (
             <div
-              key={rec.id}
-              className="bg-[#1D2126] border border-[#343B43] rounded-[5px] p-4 flex flex-wrap items-center justify-between gap-4 hardware-bezel"
+              key={profile.id}
+              className="flex flex-col gap-4 rounded-[5px] border border-[#343B43] bg-[#1D2126] p-5 hardware-bezel"
             >
-              <div className="min-w-0 flex-1">
+              <div>
                 <div className="flex items-center gap-2.5">
-                  <BookMarked className="w-4 h-4 text-[#C7A46A]" />
-                  <h3 className="text-[15px] font-semibold text-[#F1F3F5]">{rec.name}</h3>
-                  <span className="font-mono text-[11px] text-[#626D78]">{rec.createdAt}</span>
+                  <Layers className="h-4 w-4 text-[#C7A46A]" />
+                  <h2 className="text-[15px] font-semibold text-[#F1F3F5]">{profile.title}</h2>
                 </div>
-                <p className="text-[12.5px] text-[#929BA5] mt-1">{rec.description}</p>
-                <div className="font-mono text-[11.5px] text-[#626D78] mt-1.5">
-                  {rec.config.framework} · {rec.config.language} · {rec.config.packageManager} ·{' '}
-                  {rec.stepCount} operations
-                </div>
+                <p className="mt-1 text-[11px] font-mono text-[#C7A46A]">{profile.audience}</p>
+                <p className="mt-3 text-[12px] leading-relaxed text-[#929BA5]">
+                  {profile.recommendation.summary}
+                </p>
+                {profile.databases && profile.databases.length > 0 && (
+                  <div className="mt-3 flex items-center gap-2 text-[11px] text-[#929BA5]">
+                    <Database className="h-3.5 w-3.5 text-[#65B9A5]" />
+                    {profile.databases.map((database) => DATABASE_OPTIONS.find((option) => option.id === database)?.name).filter(Boolean).join(', ')}
+                  </div>
+                )}
+                <ul className="mt-3 space-y-1.5 text-[11px] text-[#929BA5]">
+                  {profile.recommendation.rationale.slice(0, 2).map((reason) => (
+                    <li key={reason} className="flex gap-2">
+                      <span className="text-[#65B9A5]">•</span><span>{reason}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onLoadRecipe(rec)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[4px] bg-[#C7A46A] hover:bg-[#D2B27C] text-[#101214] text-[12px] font-semibold cursor-pointer"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Load Recipe</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDeleteRecipe(rec.id)}
-                  aria-label={`Delete ${rec.name}`}
-                  className="p-2 rounded-[4px] bg-[#171A1E] border border-[#343B43] hover:border-[#DF7777] text-[#929BA5] hover:text-[#DF7777] cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => onApplyStack(profile)}
+                className="mt-auto inline-flex items-center justify-center gap-2 rounded-[4px] bg-[#C7A46A] px-3.5 py-2 text-[12px] font-semibold text-[#101214] hover:bg-[#D2B27C]"
+              >
+                Use this stack
+              </button>
             </div>
-          ))
-        )}
+          ))}
       </div>
     </div>
   </div>
@@ -177,83 +102,257 @@ export const ProjectRecipesScreen: React.FC<{
 export const InstallationHistoryScreen: React.FC<{
   history: HistoryRecord[];
   onClearHistory: () => void;
-}> = ({ history, onClearHistory }) => (
-  <div className="flex flex-col h-full">
-    <header className="px-6 py-4 border-b border-[#2A3038] bg-[#14171B] flex items-center justify-between gap-4">
-      <div>
-        <h1 className="text-[20px] font-semibold tracking-tight text-[#F1F3F5] uppercase">
-          Installation History
-        </h1>
-        <p className="text-[13px] text-[#929BA5] mt-0.5">
-          Audit log of scaffold dry-runs and executed command sequences.
-        </p>
-      </div>
-      {history.length > 0 && (
-        <button
-          type="button"
-          onClick={onClearHistory}
-          className="px-3 py-1.5 rounded-[4px] bg-[#171A1E] border border-[#343B43] hover:border-[#DF7777] text-[12px] text-[#929BA5] hover:text-[#DF7777] cursor-pointer"
-        >
-          Clear Log
-        </button>
-      )}
-    </header>
-    <div className="flex-1 overflow-y-auto px-6 py-6">
-      <div className="max-w-[1060px] mx-auto bg-[#171A1E] border border-[#2D333B] rounded-[5px] overflow-hidden">
-        {history.length === 0 ? (
-          <div className="p-8 text-center text-[#929BA5] text-[13px]">
-            <History className="w-6 h-6 mx-auto mb-2 text-[#626D78]" />
-            No installation runs recorded yet.
-          </div>
-        ) : (
-          <table className="w-full text-left border-collapse text-[12.5px]">
-            <thead>
-              <tr className="border-b border-[#2A3038] bg-[#14171B] text-[11px] font-mono uppercase text-[#626D78]">
-                <th className="py-2.5 px-4 font-medium">Timestamp</th>
-                <th className="py-2.5 px-4 font-medium">Project</th>
-                <th className="py-2.5 px-4 font-medium">Target Directory</th>
-                <th className="py-2.5 px-4 font-medium">Stack</th>
-                <th className="py-2.5 px-4 font-medium">Status</th>
-                <th className="py-2.5 px-4 font-medium text-right">Duration</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((item) => (
-                <tr key={item.id} className="border-b border-[#23282E] last:border-b-0 hover:bg-[#1D2126]">
-                  <td className="py-2.5 px-4 font-mono text-[11.5px] text-[#626D78]">{item.timestamp}</td>
-                  <td className="py-2.5 px-4 font-mono text-[#F1F3F5]">{item.projectName}</td>
-                  <td className="py-2.5 px-4 font-mono text-[11.5px] text-[#929BA5]">{item.directory}</td>
-                  <td className="py-2.5 px-4 text-[#929BA5]">
-                    {item.framework} · {item.packageManager}
-                  </td>
-                  <td className="py-2.5 px-4">
-                    <StatusIndicator
-                      tone={
-                        item.status === 'completed'
-                          ? 'installed'
-                          : item.status === 'failed'
-                          ? 'failed'
-                          : 'attention'
-                      }
-                      label={item.status}
-                      compact
-                    />
-                  </td>
-                  <td className="py-2.5 px-4 font-mono text-right text-[#929BA5] tabular-nums">
-                    {item.durationSec.toFixed(1)}s
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+}> = ({ history, onClearHistory }) => {
+  const [runs, setRuns] = useState<ProjectRunSession[]>([]);
+  const [editors, setEditors] = useState<Array<{ id: EditorId; label: string; available: boolean }>>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const refreshRuns = async () => {
+      try {
+        const projectRuns = await fetchProjectRuns();
+        if (active) setRuns(projectRuns);
+      } catch (loadError) {
+        if (active) {
+          setError(loadError instanceof Error ? loadError.message : 'Unable to load local project runs.');
+        }
+      }
+    };
+    void refreshRuns();
+    fetchProjectEditors()
+      .then((projectEditors) => {
+        if (active) setEditors(projectEditors);
+      })
+      .catch((loadError: unknown) => {
+        if (active) {
+          setError(loadError instanceof Error ? loadError.message : 'Unable to detect installed editors.');
+        }
+      });
+    const timer = window.setInterval(() => void refreshRuns(), 1500);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const runTarget = async (item: HistoryRecord, target: ProjectRunTarget) => {
+    const directory =
+      target === 'api'
+        ? item.apiPath ?? (item.projectType === 'api' ? item.directory : undefined)
+        : item.frontendPath ?? (item.projectType !== 'api' ? item.directory : undefined);
+    if (!directory) throw new Error(`No ${target} project folder is recorded for ${item.projectName}.`);
+    const session = await startProjectRun({ directory, framework: item.framework, target });
+    setRuns((previous) => [
+      session,
+      ...previous.filter((run) => !(run.directory === session.directory && run.target === session.target)),
+    ]);
+  };
+
+  const handleRun = async (item: HistoryRecord, targets: ProjectRunTarget[]) => {
+    setBusyId(item.id);
+    setError(null);
+    const results = await Promise.allSettled(targets.map((target) => runTarget(item, target)));
+    const failures = results
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map((result) => result.reason instanceof Error ? result.reason.message : String(result.reason));
+    if (failures.length) setError(failures.join(' '));
+    setBusyId(null);
+  };
+
+  const handleStop = async (run: ProjectRunSession) => {
+    setError(null);
+    try {
+      const session = await stopProjectRun(run.id);
+      setRuns((previous) => previous.map((item) => item.id === session.id ? session : item));
+    } catch (stopError) {
+      setError(stopError instanceof Error ? stopError.message : 'Unable to stop project.');
+    }
+  };
+
+  const handleOpen = async (directory: string, value: string) => {
+    const [editorId] = value.split(':');
+    const editor = editors.find((item) => item.id === editorId);
+    if (!editor || !editor.available) {
+      setError(`${editor?.label ?? 'Selected editor'} is not available on PATH.`);
+      return;
+    }
+    setError(null);
+    try {
+      await openProjectInEditor(directory, editor.id);
+    } catch (openError) {
+      setError(openError instanceof Error ? openError.message : 'Unable to open project in editor.');
+    }
+  };
+
+  const openOptions = (item: HistoryRecord) => {
+    const targets = item.projectType === 'fullstack'
+      ? [
+          ...(item.workspacePath && item.fullStackLayout === 'workspace'
+            ? [{ key: 'workspace', label: 'Workspace', directory: item.workspacePath }]
+            : []),
+          ...(item.frontendPath ? [{ key: 'frontend', label: 'Frontend', directory: item.frontendPath }] : []),
+          ...(item.apiPath ? [{ key: 'api', label: 'API', directory: item.apiPath }] : []),
+        ]
+      : [{ key: 'project', label: 'Project', directory: item.directory }];
+    return targets;
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <header className="px-6 py-4 border-b border-[#2A3038] bg-[#14171B] flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[20px] font-semibold tracking-tight text-[#F1F3F5] uppercase">
+            Installed projects
+          </h1>
+          <p className="text-[13px] text-[#929BA5] mt-0.5">
+            Run, stop, and open local projects. Each run gets a free port selected by the operating system.
+          </p>
+        </div>
+        {history.length > 0 && (
+          <button
+            type="button"
+            onClick={onClearHistory}
+            className="px-3 py-1.5 rounded-[4px] bg-[#171A1E] border border-[#343B43] hover:border-[#DF7777] text-[12px] text-[#929BA5] hover:text-[#DF7777] cursor-pointer"
+          >
+            Clear list
+          </button>
         )}
+      </header>
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="max-w-[1060px] mx-auto flex flex-col gap-3">
+          {error && <div role="alert" className="rounded border border-[#DF7777]/50 bg-[#DF7777]/5 p-3 text-[12px] text-[#DF7777]">{error}</div>}
+          {history.length === 0 ? (
+            <div className="rounded-[5px] border border-[#2D333B] bg-[#171A1E] p-8 text-center text-[13px] text-[#929BA5]">
+              <History className="w-6 h-6 mx-auto mb-2 text-[#626D78]" />
+              No installed projects yet. Create a frontend, API, or full-stack project to see it here.
+            </div>
+          ) : history.map((item) => {
+            const isExpanded = expandedId === item.id;
+            const projectRuns = runs.filter((run) =>
+              run.directory === item.directory ||
+              run.directory === item.frontendPath ||
+              run.directory === item.apiPath
+            );
+            const projectType = item.projectType ?? 'frontend';
+            const stackLabel = projectType === 'api'
+              ? 'Express API · TypeScript'
+              : `${item.framework}${projectType === 'fullstack' ? ' + Express API' : ''}`;
+            const targets: ProjectRunTarget[] = projectType === 'fullstack' ? ['frontend', 'api'] : [projectType === 'api' ? 'api' : 'frontend'];
+            return (
+              <article key={item.id} className="rounded-[5px] border border-[#2D333B] bg-[#171A1E] hardware-bezel">
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4">
+                  <div className="min-w-0 flex-1">
+                    <button
+                      type="button"
+                      aria-expanded={isExpanded}
+                      onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                      className="font-mono text-left text-[14px] font-semibold text-[#F1F3F5] hover:text-[#C7A46A]"
+                    >
+                      {item.projectName}
+                    </button>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#929BA5]">
+                      <span>{stackLabel}</span>
+                      <span>{item.timestamp}</span>
+                      <StatusIndicator
+                        tone={item.status === 'completed' ? 'installed' : item.status === 'failed' ? 'failed' : 'attention'}
+                        label={item.status}
+                        compact
+                      />
+                    </div>
+                    <div className="mt-1 break-all font-mono text-[11px] text-[#626D78]">{item.directory}</div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {targets.map((target) => (
+                      <button
+                        key={target}
+                        type="button"
+                        disabled={busyId === item.id || item.status !== 'completed'}
+                        onClick={() => void handleRun(item, [target])}
+                        className="inline-flex items-center gap-1.5 rounded border border-[#C7A46A]/60 bg-[#252A30] px-3 py-2 text-[11px] font-medium text-[#F1F3F5] hover:border-[#C7A46A] disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        <Play className="h-3 w-3 fill-current text-[#C7A46A]" />
+                        {projectType === 'fullstack' ? `Run ${target}` : 'Run project'}
+                      </button>
+                    ))}
+                    {projectType === 'fullstack' && (
+                      <button
+                        type="button"
+                        disabled={busyId === item.id || item.status !== 'completed'}
+                        onClick={() => void handleRun(item, ['frontend', 'api'])}
+                        className="inline-flex items-center gap-1.5 rounded border border-[#343B43] px-3 py-2 text-[11px] text-[#929BA5] hover:border-[#65B9A5] hover:text-[#F1F3F5] disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        Run both
+                      </button>
+                    )}
+                    <select
+                      aria-label={`Open ${item.projectName} in an editor`}
+                      defaultValue=""
+                      onChange={(event) => {
+                        if (!event.target.value) return;
+                        const [targetKey, editorId] = event.target.value.split(':');
+                        const target = openOptions(item).find((option) => option.key === targetKey);
+                        if (target) void handleOpen(target.directory, `${editorId}:`);
+                        event.target.value = '';
+                      }}
+                      className="max-w-[190px] rounded border border-[#343B43] bg-[#101214] px-2.5 py-2 text-[11px] text-[#F1F3F5]"
+                    >
+                      <option value="">Open with…</option>
+                      {openOptions(item).map((target) => (
+                        <optgroup key={target.key} label={`Open ${target.label} with`}>
+                          {editors.map((editor) => (
+                            <option key={editor.id} value={`${target.key}:${editor.id}`} disabled={!editor.available}>
+                              {editor.label}{editor.available ? '' : ' (not found)'}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {isExpanded && (
+                  <div className="border-t border-[#2A3038] px-4 py-3">
+                    <div className="grid gap-3 text-[11px] text-[#929BA5] sm:grid-cols-2">
+                      <div><span className="text-[#626D78]">Installation duration</span><div className="mt-1 font-mono text-[#F1F3F5]">{item.durationSec.toFixed(1)}s</div></div>
+                      <div><span className="text-[#626D78]">Layout</span><div className="mt-1 text-[#F1F3F5]">{item.fullStackLayout === 'separate' ? 'Separate sibling folders' : item.fullStackLayout === 'workspace' && projectType === 'fullstack' ? 'Single workspace folder' : 'Single project'}</div></div>
+                    </div>
+                    {projectRuns.length > 0 && (
+                      <div className="mt-3 flex flex-col gap-2">
+                        {projectRuns.map((run) => (
+                          <div key={run.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-[#2A3038] bg-[#101214] px-3 py-2">
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <span className="capitalize text-[#F1F3F5]">{run.target}</span>
+                              <span className="font-mono text-[#65B9A5]">:{run.port}</span>
+                              {run.status === 'running' ? (
+                                <a href={run.url} target="_blank" rel="noreferrer" className="text-[#C7A46A] underline">{run.url}</a>
+                              ) : (
+                                <span className="text-[#929BA5]">{run.error ?? run.status}</span>
+                              )}
+                            </div>
+                            {run.status === 'running' && (
+                              <button type="button" onClick={() => void handleStop(run)} className="inline-flex items-center gap-1 rounded border border-[#343B43] px-2 py-1 text-[10px] text-[#DF7777] hover:border-[#DF7777]">
+                                <Square className="h-3 w-3" /> Stop
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-/* 4. DIAGNOSTICS */
-export const DiagnosticsScreen: React.FC<{
+/* ENVIRONMENT DIAGNOSTICS */
+export const DiagnosticsSettingsSection: React.FC<{
   systemProbe: SystemProbeResult | null;
   config: ProjectConfig;
   onProbeSystem: () => Promise<void>;
@@ -326,13 +425,13 @@ export const DiagnosticsScreen: React.FC<{
     : 'Awaiting initial system probe…';
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="px-6 py-4 border-b border-[#2A3038] bg-[#14171B] flex items-center justify-between">
+    <section className="rounded-[5px] border border-[#343B43] bg-[#1D2126] p-5 hardware-bezel">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#2A3038] pb-3">
         <div>
-          <h1 className="text-[20px] font-semibold tracking-tight text-[#F1F3F5] uppercase">
+          <h2 className="text-[13.5px] font-semibold uppercase tracking-[0.06em] text-[#F1F3F5]">
             Environment Diagnostics
-          </h1>
-          <p className="text-[13px] text-[#929BA5] mt-0.5">
+          </h2>
+          <p className="mt-0.5 text-[12px] text-[#929BA5]">
             Live host CLI binary resolution, Git checks, PATH summary, and TCP port binding tests.
           </p>
         </div>
@@ -345,9 +444,8 @@ export const DiagnosticsScreen: React.FC<{
           <Stethoscope className={`w-4 h-4 text-[#C7A46A] ${probing ? 'animate-pulse' : ''}`} />
           <span>{probing ? 'Probing Host…' : 'Run Preflight Check'}</span>
         </button>
-      </header>
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-[900px] mx-auto flex flex-col gap-4">
+      </div>
+      <div className="mt-4 flex flex-col gap-4">
           <div className="text-[11.5px] font-mono text-[#626D78] flex flex-wrap items-center justify-between gap-2">
             <span>Last diagnostic sweep: {checkedAt}</span>
             {systemProbe && <span>Host: {systemProbe.hostname}</span>}
@@ -363,9 +461,8 @@ export const DiagnosticsScreen: React.FC<{
               </div>
             ))}
           </div>
-        </div>
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -373,12 +470,18 @@ export const DiagnosticsScreen: React.FC<{
 export const SettingsScreen: React.FC<{
   settings: StudioSettings;
   providerStatuses: AiProviderStatus[];
+  systemProbe: SystemProbeResult | null;
+  config: ProjectConfig;
+  onProbeSystem: () => Promise<void>;
   onRefreshAiStatus: () => void;
   onUpdateSettings: (patch: Partial<StudioSettings>) => void;
   onApplyDefaultsToStudio?: () => void;
 }> = ({
   settings,
   providerStatuses,
+  systemProbe,
+  config,
+  onProbeSystem,
   onRefreshAiStatus,
   onUpdateSettings,
   onApplyDefaultsToStudio,
@@ -465,10 +568,10 @@ export const SettingsScreen: React.FC<{
       <header className="px-6 py-4 border-b border-[#2A3038] bg-[#14171B] flex items-center justify-between">
         <div>
           <h1 className="text-[20px] font-semibold tracking-tight text-[#F1F3F5] uppercase">
-            Workstation Settings
+            Settings
           </h1>
           <p className="text-[13px] text-[#929BA5] mt-0.5">
-            Default workspace paths, preferred CLI tools, shell syntax, and optional AI providers.
+            Personalize the interface and manage your local development environment.
           </p>
         </div>
         <div className="inline-flex items-center gap-1.5 text-[12px] text-[#70BD92]">
@@ -487,6 +590,114 @@ export const SettingsScreen: React.FC<{
       </header>
       <div className="flex-1 overflow-y-auto px-6 py-6">
         <div className="max-w-[920px] mx-auto flex flex-col gap-6">
+          <section className="rounded-[5px] border border-[#343B43] bg-[#1D2126] p-5 hardware-bezel">
+            <div className="mb-4 flex items-center gap-2">
+              <Palette className="h-4 w-4 text-[#C7A46A]" />
+              <div>
+                <h2 className="text-[13.5px] font-semibold uppercase tracking-[0.06em] text-[#F1F3F5]">Theme & appearance</h2>
+                <p className="mt-0.5 text-[12px] text-[#929BA5]">Choose a color mode, accent, typefaces, and interface text size.</p>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1.5 text-[12px] text-[#F1F3F5]">
+                Color mode
+                <select
+                  value={settings.themeMode}
+                  onChange={(event) => onUpdateSettings({ themeMode: event.target.value as StudioSettings['themeMode'] })}
+                  className="rounded border border-[#343B43] bg-[#101214] px-3 py-2 text-[12px] text-[#F1F3F5]"
+                >
+                  <option value="dark">Dark graphite</option>
+                  <option value="semi-dark">Semi-dark charcoal</option>
+                  <option value="midnight">Midnight blue</option>
+                  <option value="forest">Forest</option>
+                  <option value="ocean">Ocean</option>
+                  <option value="light">Light</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 text-[12px] text-[#F1F3F5]">
+                Interface font
+                <select
+                  value={settings.bodyFont}
+                  onChange={(event) => onUpdateSettings({ bodyFont: event.target.value as StudioSettings['bodyFont'] })}
+                  className="rounded border border-[#343B43] bg-[#101214] px-3 py-2 text-[12px] text-[#F1F3F5]"
+                >
+                  <option value="IBM Plex Sans">IBM Plex Sans</option>
+                  <option value="Inter">Inter</option>
+                  <option value="system-ui">System UI</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 text-[12px] text-[#F1F3F5]">
+                Heading / accent font
+                <select
+                  value={settings.accentFont}
+                  onChange={(event) => onUpdateSettings({ accentFont: event.target.value as StudioSettings['accentFont'] })}
+                  className="rounded border border-[#343B43] bg-[#101214] px-3 py-2 text-[12px] text-[#F1F3F5]"
+                >
+                  <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+                  <option value="Space Grotesk">Space Grotesk</option>
+                  <option value="Inter">Inter</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 text-[12px] text-[#F1F3F5]">
+                Interface text size · {settings.fontSize}px
+                <input
+                  type="range"
+                  min={13}
+                  max={17}
+                  step={1}
+                  value={settings.fontSize}
+                  onChange={(event) => onUpdateSettings({ fontSize: Number(event.target.value) as StudioSettings['fontSize'] })}
+                  className="mt-2 accent-[#C7A46A]"
+                  aria-label="Interface text size"
+                />
+              </label>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-[12px] text-[#F1F3F5]">
+                Accent color
+                <input
+                  type="color"
+                  value={settings.accentColor}
+                  onChange={(event) => onUpdateSettings({ accentColor: event.target.value })}
+                  className="h-8 w-12 cursor-pointer rounded border border-[#343B43] bg-[#101214] p-1"
+                />
+              </label>
+              {['#C7A46A', '#65B9A5', '#77A9DC', '#C98AA7', '#A78BFA'].map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => onUpdateSettings({ accentColor: color })}
+                  aria-label={`Set accent color ${color}`}
+                  aria-pressed={settings.accentColor.toLowerCase() === color.toLowerCase()}
+                  className="h-6 w-6 rounded-full border border-white/30 focus-visible:outline-2 focus-visible:outline-white"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </section>
+
+          <DiagnosticsSettingsSection
+            systemProbe={systemProbe}
+            config={config}
+            onProbeSystem={onProbeSystem}
+          />
+
+          <section className="rounded-[5px] border border-[#343B43] bg-[#1D2126] p-5 hardware-bezel">
+            <h2 className="text-[13.5px] font-semibold uppercase tracking-[0.06em] text-[#F1F3F5]">About</h2>
+            <p className="mt-3 text-[14px] font-semibold text-[#F1F3F5]">Jeffrey Katlego Monamodi</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-[#929BA5]">
+              Software Developer and UI/UX Designer with over 12 years of experience, now Agentic Prompter.
+            </p>
+            <a
+              href="https://www.beyondcuriouslabs.co.za"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-[#77A9DC] hover:text-[#F1F3F5]"
+            >
+              beyondcuriouslabs.co.za <ExternalLink className="h-3 w-3" />
+            </a>
+          </section>
+
           {/* Core Workstation Calibration */}
           <section className="bg-[#1D2126] border border-[#343B43] rounded-[5px] p-5 flex flex-col gap-5 hardware-bezel">
             <div>
@@ -561,24 +772,10 @@ export const SettingsScreen: React.FC<{
               />
             </div>
 
-            <MechanicalToggle
-              checked={settings.verboseCommandPreview}
-              onChange={(v) => onUpdateSettings({ verboseCommandPreview: v })}
-              label="Verbose Command Explanations"
-              description="Include inline descriptions for each step in the execution sequence."
-            />
-
-            <MechanicalToggle
-              checked={settings.confirmBeforeExecution}
-              onChange={(v) => onUpdateSettings({ confirmBeforeExecution: v })}
-              label="Confirm Before Running Pipeline"
-              description="Require explicit preflight acknowledgement before starting Operations Centre."
-            />
-
             {onApplyDefaultsToStudio && (
               <div className="pt-3 border-t border-[#2A3038] flex flex-wrap items-center justify-between gap-3">
                 <div className="text-[12px] text-[#929BA5]">
-                  Apply preview defaults. Choose the actual install folder in Create project.
+                  Apply preview defaults. Choose the actual install folder in Create New Project.
                 </div>
                 <button
                   type="button"

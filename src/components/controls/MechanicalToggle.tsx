@@ -1,4 +1,5 @@
 import React from 'react';
+import { Switch, SwitchThumb } from '@ui-sdk/react/switch';
 
 interface MechanicalToggleProps {
   checked: boolean;
@@ -44,16 +45,14 @@ export const MechanicalToggle: React.FC<MechanicalToggleProps> = ({
         )}
       </div>
 
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
+      <Switch
+        checked={checked}
+        onCheckedChange={(next) => onChange(next)}
         aria-label={label}
         disabled={disabled}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onFocusInspect) onFocusInspect();
-          onChange(!checked);
+        onClick={(event) => {
+          event.stopPropagation();
+          onFocusInspect?.();
         }}
         className={`relative inline-flex items-center w-12 h-6 rounded-[4px] border transition-colors shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C7A46A] cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed hardware-recessed ${
           checked
@@ -80,7 +79,7 @@ export const MechanicalToggle: React.FC<MechanicalToggleProps> = ({
         </span>
 
         {/* Machined metal shuttle */}
-        <span
+        <SwitchThumb
           className={`inline-flex items-center justify-center w-5 h-4 rounded-[3px] border transition-transform duration-150 ${
             checked
               ? 'translate-x-[23px] bg-[#313840] border-[#65B9A5] shadow-[0_1px_3px_rgba(0,0,0,0.6)]'
@@ -91,8 +90,8 @@ export const MechanicalToggle: React.FC<MechanicalToggleProps> = ({
             className={`w-1 h-2 rounded-[1px] ${checked ? 'bg-[#65B9A5]' : 'bg-[#626D78]'}`}
             aria-hidden="true"
           />
-        </span>
-      </button>
+        </SwitchThumb>
+      </Switch>
     </div>
   );
 };

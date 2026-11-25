@@ -1,43 +1,49 @@
 import React from 'react';
-import { ArrowRight, BarChart3, BookMarked, FolderKanban, History, Package, Play } from 'lucide-react';
+import { ArrowRight, Database, FolderKanban, History, Layers } from 'lucide-react';
 import type {
-  ExecutionCommandStep,
   HistoryRecord,
   PackageManagerInfo,
   ProjectConfig,
   RuntimeInfo,
-  SavedRecipe,
+  StackPresetProfile,
   ScreenId,
 } from '../../types/studio';
 import { FRAMEWORKS } from '../../data/studioCatalog';
+import { CURATED_STACK_RECOMMENDATIONS } from '../../data/stackAdvisor';
+import { DATABASE_OPTIONS } from '../../data/databases';
 import { FrameworkMark, RuntimeMark } from '../icons/BrandMarks';
 import { StatusIndicator } from '../controls/StatusIndicator';
 import { TechnicalMeter } from '../controls/TechnicalMeter';
-import { HistoryDurationChart, PipelinePhaseChart } from '../charts/StudioCharts';
 
 interface OverviewScreenProps {
   config: ProjectConfig;
   runtimes: RuntimeInfo[];
   packageManagers: PackageManagerInfo[];
-  executionPlan: ExecutionCommandStep[];
-  recipes: SavedRecipe[];
   history: HistoryRecord[];
   onNavigate: (screen: ScreenId) => void;
-  onLoadRecipe: (recipe: SavedRecipe) => void;
+  onApplyStack: (profile: StackPresetProfile) => void;
 }
 
 export const OverviewScreen: React.FC<OverviewScreenProps> = ({
   config,
   runtimes,
   packageManagers,
-  executionPlan,
-  recipes,
   history,
   onNavigate,
-  onLoadRecipe,
+  onApplyStack,
 }) => {
   const activeFramework = FRAMEWORKS.find((f) => f.id === config.framework) ?? FRAMEWORKS[0];
   const installedRuntimesCount = runtimes.filter((r) => r.installedVersion !== null).length;
+  const installedPackageManagersCount = packageManagers.filter((pm) => pm.status === 'installed').length;
+  const draftReady = Boolean(config.projectName.trim() && config.directory.trim());
+  const projectTypeLabel =
+    config.projectType === 'api'
+      ? 'API only'
+      : config.projectType === 'fullstack'
+        ? 'Full-stack'
+        : 'Frontend only';
+  const includesFrontend = config.projectType !== 'api';
+  const includesApi = config.projectType !== 'frontend';
 
   return (
     <div className="flex flex-col h-full">
@@ -47,7 +53,7 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({
             Workstation Overview
           </h1>
           <p className="text-[13px] text-[#929BA5] mt-0.5">
-            Local toolchain readiness, active project profile, and reproducible recipes.
+            Check your local toolchain, create frontend or API projects, and return to installed workspaces.
           </p>
         </div>
 
@@ -57,7 +63,7 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({
           className="inline-flex items-center gap-2 px-4 py-2 rounded-[4px] bg-[#C7A46A] hover:bg-[#D2B27C] text-[#101214] text-[12.5px] font-semibold uppercase tracking-wide cursor-pointer transition-colors"
         >
           <FolderKanban className="w-4 h-4" />
-          <span>Create a project</span>
+          <span>Create New Project</span>
         </button>
       </header>
 
@@ -69,54 +75,64 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-[4px] bg-[#252A30] border border-[#C7A46A]/50 flex items-center justify-center">
-                    <FrameworkMark id={activeFramework.id} active className="w-5 h-5" />
+                    {includesFrontend ? (
+                      <FrameworkMark id={activeFramework.id} active className="w-5 h-5" />
+                    ) : (
+                      <FolderKanban className="w-5 h-5 text-[#C7A46A]" />
+                    )}
                   </div>
                   <div>
                     <div className="text-[11px] font-mono uppercase tracking-wider text-[#C7A46A]">
-                      Active Draft Configuration
+                      Current project setup
                     </div>
                     <h2 className="text-[17px] font-semibold text-[#F1F3F5]">
-                      {config.projectName || 'my-awesome-app'}
+                      {config.projectName || 'Name your project'}
                     </h2>
                   </div>
                 </div>
-                <StatusIndicator tone="installed" label="Ready to scaffold" compact />
+                <StatusIndicator
+                  tone={draftReady ? 'installed' : 'attention'}
+                  label={draftReady ? 'Ready to install' : 'Setup needed'}
+                  compact
+                />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 border-y border-[#2A3038] text-[12px]">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 py-3 border-y border-[#2A3038] text-[12px]">
                 <div>
-                  <div className="text-[#626D78] text-[11px]">Foundation</div>
-                  <div className="font-mono text-[#F1F3F5] mt-0.5">{activeFramework.name}</div>
+                  <div className="text-[#626D78] text-[11px]">Project type</div>
+                  <div className="font-mono text-[#F1F3F5] mt-0.5">{projectTypeLabel}</div>
+                </div>
+                <div>
+                  <div className="text-[#626D78] text-[11px]">Frontend</div>
+                  <div className="font-mono text-[#F1F3F5] mt-0.5">
+                    {includesFrontend ? activeFramework.name : 'Not included'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[#626D78] text-[11px]">API</div>
+                  <div className="font-mono text-[#F1F3F5] mt-0.5">
+                    {includesApi ? 'Express' : 'Not included'}
+                  </div>
                 </div>
                 <div>
                   <div className="text-[#626D78] text-[11px]">Language</div>
-                  <div className="font-mono text-[#F1F3F5] mt-0.5 capitalize">{config.language}</div>
+                  <div className="font-mono text-[#F1F3F5] mt-0.5 capitalize">
+                    {includesApi ? 'TypeScript' : config.language}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-[#626D78] text-[11px]">Package Manager</div>
-                  <div className="font-mono text-[#C7A46A] mt-0.5">{config.packageManager}</div>
-                </div>
-                <div>
-                  <div className="text-[#626D78] text-[11px]">Queued Libraries</div>
+                  <div className="text-[#626D78] text-[11px]">Frontend add-ons</div>
                   <div className="font-mono text-[#65B9A5] mt-0.5 tabular-nums">
-                    {config.selectedPackageIds.length} packages
+                    {includesFrontend ? `${config.selectedPackageIds.length} selected` : 'Not applicable'}
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="font-mono text-[11.5px] text-[#929BA5]">
-                  Target: {config.directory}/{config.projectName}
+                  {config.directory ? `Destination: ${config.directory}` : 'Choose a destination when creating the project'}
                 </span>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('packages')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#171A1E] border border-[#343B43] hover:border-[#49535E] text-[12px] text-[#F1F3F5] cursor-pointer"
-                  >
-                    <Package className="w-3.5 h-3.5 text-[#C7A46A]" />
-                    <span>Packages</span>
-                  </button>
                   <button
                     type="button"
                     onClick={() => onNavigate('project-studio')}
@@ -153,9 +169,9 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({
                   segments={12}
                 />
                 <TechnicalMeter
-                  label="Package Managers"
-                  value={packageManagers.length}
-                  max={4}
+                  label="Detected Package Managers"
+                  value={installedPackageManagersCount}
+                  max={packageManagers.length}
                   tone="brass"
                   segments={12}
                 />
@@ -177,94 +193,59 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({
             </div>
           </div>
 
-          {/* Pipeline & Execution Visualizations */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="bg-[#1D2126] border border-[#343B43] rounded-[5px] p-5 flex flex-col gap-3 hardware-bezel">
-              <div className="flex items-center justify-between border-b border-[#2A3038] pb-2.5">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-[#C7A46A]" />
-                  <h2 className="text-[12.5px] font-semibold uppercase tracking-wider text-[#F1F3F5]">
-                    Active Pipeline Phase Breakdown
-                  </h2>
-                </div>
-                <span className="font-mono text-[11px] text-[#626D78] tabular-nums">
-                  {executionPlan.length} ops · ~{executionPlan.reduce((a, b) => a + b.estimatedSec, 0)}s
-                </span>
-              </div>
-              <PipelinePhaseChart steps={executionPlan} />
-            </div>
-
-            <div className="bg-[#1D2126] border border-[#343B43] rounded-[5px] p-5 flex flex-col gap-3 hardware-bezel">
-              <div className="flex items-center justify-between border-b border-[#2A3038] pb-2.5">
-                <div className="flex items-center gap-2">
-                  <History className="w-4 h-4 text-[#65B9A5]" />
-                  <h2 className="text-[12.5px] font-semibold uppercase tracking-wider text-[#F1F3F5]">
-                    Recorded Build Duration Trend
-                  </h2>
-                </div>
-                <span className="font-mono text-[11px] text-[#626D78] tabular-nums">
-                  {history.length} run{history.length === 1 ? '' : 's'}
-                </span>
-              </div>
-              <HistoryDurationChart history={history} />
-            </div>
-          </section>
-
-          {/* Saved Project Recipes */}
+          {/* Recommended Tech Stacks */}
           <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between border-b border-[#262B32] pb-2">
               <div className="flex items-center gap-2">
-                <BookMarked className="w-4 h-4 text-[#C7A46A]" />
+                <Layers className="w-4 h-4 text-[#C7A46A]" />
                 <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#F1F3F5]">
-                  Quick-Load Project Recipes
+                  Recommended Tech Stacks
                 </h2>
               </div>
               <button
                 type="button"
-                onClick={() => onNavigate('recipes')}
+                onClick={() => onNavigate('tech-stack')}
                 className="text-[12px] text-[#929BA5] hover:text-[#F1F3F5] cursor-pointer"
               >
-                All recipes ({recipes.length}) →
+                Explore stacks →
               </button>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {recipes.slice(0, 3).map((rec) => (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {CURATED_STACK_RECOMMENDATIONS.slice(-3).map((profile) => (
                 <div
-                  key={rec.id}
-                  className="bg-[#171A1E] border border-[#2D333B] hover:border-[#3E4752] rounded-[5px] p-4 flex flex-col justify-between gap-4 transition-colors"
+                  key={profile.id}
+                  className="flex flex-col justify-between gap-3 rounded-[5px] border border-[#2D333B] bg-[#171A1E] p-4"
                 >
                   <div>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <FrameworkMark id={rec.config.framework} className="w-4.5 h-4.5" />
-                      <span className="font-mono text-[11px] text-[#626D78]">
-                        {rec.stepCount} ops · {rec.config.packageManager}
-                      </span>
-                    </div>
-                    <h3 className="text-[14px] font-semibold text-[#F1F3F5]">{rec.name}</h3>
-                    <p className="text-[12px] text-[#929BA5] mt-1 leading-snug">{rec.description}</p>
+                    <h3 className="text-[14px] font-semibold text-[#F1F3F5]">{profile.title}</h3>
+                    <p className="mt-1 text-[10px] font-mono text-[#C7A46A]">{profile.audience}</p>
+                    <p className="mt-2 text-[11px] leading-relaxed text-[#929BA5]">{profile.recommendation.summary}</p>
+                    {profile.databases && profile.databases.length > 0 && (
+                      <div className="mt-2 flex items-center gap-1.5 text-[10px] text-[#929BA5]">
+                        <Database className="h-3 w-3 text-[#65B9A5]" />
+                        {profile.databases.map((database) => DATABASE_OPTIONS.find((option) => option.id === database)?.name).filter(Boolean).join(', ')}
+                      </div>
+                    )}
                   </div>
-
                   <button
                     type="button"
-                    onClick={() => onLoadRecipe(rec)}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#252A30] border border-[#343B43] hover:border-[#C7A46A] text-[12px] font-medium text-[#F1F3F5] cursor-pointer transition-colors"
+                    onClick={() => onApplyStack(profile)}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-[4px] border border-[#C7A46A]/60 bg-[#252A30] px-3 py-1.5 text-[11px] font-medium text-[#F1F3F5] hover:border-[#C7A46A]"
                   >
-                    <Play className="w-3 h-3 text-[#C7A46A]" />
-                    <span>Load recipe into setup</span>
+                    <span>Use stack</span>
                   </button>
                 </div>
               ))}
             </div>
           </section>
 
-          {/* Recent Installation Runs */}
+          {/* Recent installations */}
           <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between border-b border-[#262B32] pb-2">
               <div className="flex items-center gap-2">
                 <History className="w-4 h-4 text-[#65B9A5]" />
                 <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#F1F3F5]">
-                  Recent Operations
+                  Recent installations
                 </h2>
               </div>
               <button
@@ -272,7 +253,7 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({
                 onClick={() => onNavigate('history')}
                 className="text-[12px] text-[#929BA5] hover:text-[#F1F3F5] cursor-pointer"
               >
-                View history →
+                View installed projects →
               </button>
             </div>
 
@@ -288,7 +269,13 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {history.slice(0, 4).map((item) => (
+                  {history.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-5 px-4 text-center text-[#929BA5]">
+                        No installed projects yet. Create a project to see it here.
+                      </td>
+                    </tr>
+                  ) : history.slice(0, 4).map((item) => (
                     <tr
                       key={item.id}
                       className="border-b border-[#23282E] last:border-b-0 hover:bg-[#1D2126]"

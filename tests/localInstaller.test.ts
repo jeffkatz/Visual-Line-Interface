@@ -4,8 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
+  buildDatabaseScaffold,
   buildScaffoldArgs,
   npmPackageArgs,
+  prepareProjectPaths,
   prepareProjectPath,
   validateProjectInstallInput,
 } from '../server/localInstaller';
@@ -14,6 +16,10 @@ import type { ProjectInstallInput } from '../server/localInstaller';
 const validInput: ProjectInstallInput = {
   directory: path.resolve(os.tmpdir()),
   projectName: 'starter-app',
+  projectType: 'frontend',
+  databases: [],
+  fullStackLayout: 'workspace',
+  apiFramework: 'express',
   framework: 'vite',
   viteUiFramework: 'react',
   language: 'typescript',
@@ -27,6 +33,7 @@ test('installer accepts only local npm requests with valid package specs', () =>
     packages: [{ name: '@types/node', version: '22.14.0', isDevDependency: true }],
   });
   assert.equal(parsed.projectName, 'starter-app');
+  assert.deepEqual(parsed.databases, []);
   assert.deepEqual(npmPackageArgs(parsed.packages), [
     ['install', '--save-dev', '@types/node@22.14.0'],
   ]);
@@ -38,6 +45,18 @@ test('installer accepts only local npm requests with valid package specs', () =>
   assert.throws(
     () => validateProjectInstallInput({ ...validInput, projectName: '../outside' }),
     /Project name/
+  );
+  assert.throws(
+    () => validateProjectInstallInput({ ...validInput, databases: ['postgresql'] }),
+    /require an API project/
+  );
+  assert.throws(
+    () => validateProjectInstallInput({ ...validInput, projectType: 'api', databases: ['unknown'] }),
+    /supported databases/
+  );
+  assert.throws(
+    () => validateProjectInstallInput({ ...validInput, projectType: 'api', databases: ['redis', 'redis'] }),
+    /duplicates/
   );
   assert.throws(
     () =>
@@ -55,6 +74,31 @@ test('installer accepts only local npm requests with valid package specs', () =>
       }),
     /invalid pinned version/
   );
+});
+
+test('database scaffold adds each selected driver, environment key, and connection check', () => {
+  const scaffold = buildDatabaseScaffold(
+    ['postgresql', 'mongodb', 'mysql', 'sqlite', 'redis'],
+    'sample-database-app'
+  );
+
+  assert.deepEqual(
+    Object.keys(scaffold.dependencies).sort(),
+    ['better-sqlite3', 'mongodb', 'mysql2', 'pg', 'redis'].sort()
+  );
+  assert.ok(scaffold.devDependencies['@types/pg']);
+  assert.ok(scaffold.devDependencies['@types/better-sqlite3']);
+  assert.match(scaffold.envExample, /DATABASE_URL=/);
+  assert.match(scaffold.envExample, /MONGODB_URI=/);
+  assert.match(scaffold.envExample, /MYSQL_URL=/);
+  assert.match(scaffold.envExample, /SQLITE_PATH=/);
+  assert.match(scaffold.envExample, /REDIS_URL=/);
+  assert.match(scaffold.source, /export async function connectDatabases/);
+  assert.match(scaffold.source, /await postgresql\.query/);
+  assert.match(scaffold.source, /await mongodbClient\.connect/);
+  assert.match(scaffold.source, /await mysqlPool\.query/);
+  assert.match(scaffold.source, /sqlite\.prepare/);
+  assert.match(scaffold.source, /await redisClient\.ping/);
 });
 
 test('scaffold arguments are selected from fixed framework and template values', () => {
@@ -85,6 +129,30 @@ test('scaffold arguments are selected from fixed framework and template values',
       '--no-install',
     ]
   );
+  assert.deepEqual(
+    buildScaffoldArgs({ ...validInput, framework: 'angular' }),
+    [
+      'exec',
+      '--yes',
+      '--package',
+      '@angular/cli@latest',
+      '--',
+      'ng',
+      'new',
+      'starter-app',
+      '--defaults',
+      '--skip-install',
+      '--skip-git',
+      '--routing',
+      '--style=css',
+      '--analytics=false',
+      '--package-manager=npm',
+    ]
+  );
+  assert.throws(
+    () => validateProjectInstallInput({ ...validInput, framework: 'angular', language: 'javascript' }),
+    /Angular projects require TypeScript/
+  );
 });
 
 test('destination validation confines project names and refuses existing folders', async () => {
@@ -96,6 +164,24 @@ test('destination validation confines project names and refuses existing folders
 
     await mkdir(target);
     await assert.rejects(prepareProjectPath(request), /already exists/);
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test('full-stack separate layout resolves two sibling project folders without using a hardcoded name', async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), 'vli-fullstack-'));
+  try {
+    const paths = await prepareProjectPaths({
+      ...validInput,
+      directory: parent,
+      projectName: 'client-api',
+      projectType: 'fullstack',
+      fullStackLayout: 'separate',
+    });
+    assert.equal(paths.projectPath, path.join(parent, 'client-api-frontend'));
+    assert.equal(paths.apiPath, path.join(parent, 'client-api-api'));
+    assert.equal(paths.workspacePath, parent);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }

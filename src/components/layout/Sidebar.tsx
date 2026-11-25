@@ -1,21 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
   Activity,
-  Blocks,
-  BookMarked,
-  BookOpen,
   ChevronDown,
   Cpu,
   FolderKanban,
-  GitBranch,
   History,
+  Layers,
   LayoutGrid,
   MoreHorizontal,
-  Package,
-  PlaySquare,
   Search,
   Settings,
-  Stethoscope,
   User,
 } from 'lucide-react';
 import type { RuntimeInfo, ScreenId, SystemProbeResult } from '../../types/studio';
@@ -27,9 +21,6 @@ interface SidebarProps {
   onSelectScreen: (screen: ScreenId) => void;
   activeRuntime: RuntimeInfo;
   systemProbe: SystemProbeResult | null;
-  isExecutionActive: boolean;
-  selectedPackageCount: number;
-  recipeCount: number;
   onOpenCommandPalette: () => void;
 }
 
@@ -45,45 +36,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectScreen,
   activeRuntime,
   systemProbe,
-  isExecutionActive,
-  selectedPackageCount,
-  recipeCount,
   onOpenCommandPalette,
 }) => {
   const primaryItems: NavItem[] = [
-    { id: 'project-studio', label: 'Create project', icon: FolderKanban },
-    {
-      id: 'packages',
-      label: 'Packages',
-      icon: Package,
-      meta: selectedPackageCount > 0 ? String(selectedPackageCount) : undefined,
-    },
+    { id: 'overview', label: 'Overview', icon: LayoutGrid },
+    { id: 'project-studio', label: 'Create New Project', icon: FolderKanban },
     {
       id: 'history',
-      label: 'Install history',
+      label: 'Installed projects',
       icon: History,
     },
   ];
 
   const moreItems: NavItem[] = [
-    { id: 'overview', label: 'Overview', icon: LayoutGrid },
     { id: 'runtimes', label: 'Runtime manager', icon: Cpu },
-    { id: 'workflows', label: 'Workflow builder', icon: GitBranch },
-    {
-      id: 'operations',
-      label: 'Dry-run simulator',
-      icon: PlaySquare,
-      meta: isExecutionActive ? 'LIVE' : undefined,
-    },
-    { id: 'integrations', label: 'Integration registry', icon: Blocks },
-    { id: 'recipes', label: 'Project recipes', icon: BookMarked, meta: String(recipeCount) },
-    { id: 'diagnostics', label: 'Diagnostics', icon: Stethoscope },
-    { id: 'docs', label: 'Docs & tutorial', icon: BookOpen },
+    { id: 'tech-stack', label: 'Tech Stack', icon: Layers },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   const [moreOpen, setMoreOpen] = useState(false);
-  const primaryIds: ScreenId[] = ['project-studio', 'packages', 'history'];
+  const primaryIds: ScreenId[] = ['overview', 'project-studio', 'history'];
   const moreIsActive = !primaryIds.includes(activeScreen);
 
   useEffect(() => {
@@ -211,7 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
             <StatusIndicator
               tone={activeRuntime.status}
-              label={isExecutionActive ? 'Running' : 'Ready'}
+              label="Ready"
               compact
             />
           </div>
@@ -233,10 +205,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div className="min-w-0">
               <div className="text-[12px] font-medium text-[#F1F3F5] truncate">
-                Developer Bench
+                Local workstation
               </div>
               <div className="text-[10.5px] font-mono text-[#626D78] truncate">
-                local · zsh
+                Local environment
               </div>
             </div>
           </div>

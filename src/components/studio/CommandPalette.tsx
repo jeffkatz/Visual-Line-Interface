@@ -8,7 +8,7 @@ import {
   Search,
   Terminal,
 } from 'lucide-react';
-import type { ScreenId, StudioPackage } from '../../types/studio';
+import type { FrameworkId, ScreenId, StudioPackage } from '../../types/studio';
 import { FRAMEWORKS, INITIAL_PACKAGE_MANAGERS, INITIAL_RUNTIMES, TOOLCHAIN_DOCS } from '../../data/studioCatalog';
 
 interface CommandPaletteProps {
@@ -17,7 +17,7 @@ interface CommandPaletteProps {
   packages: StudioPackage[];
   onNavigate: (screen: ScreenId) => void;
   onCopyCommands: () => void;
-  onSelectFramework: (frameworkId: 'vite' | 'nextjs' | 'astro' | 'vue' | 'sveltekit') => void;
+  onSelectFramework: (frameworkId: FrameworkId) => void;
 }
 
 interface PaletteAction {
@@ -51,14 +51,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   const actions = useMemo<PaletteAction[]>(() => {
     const navItems: PaletteAction[] = [
-      { id: 'nav-studio', group: 'Navigation', title: 'Create project', subtitle: 'Choose a framework, folder, and packages; install locally', onSelect: () => onNavigate('project-studio') },
-      { id: 'nav-overview', group: 'Navigation', title: 'Overview', subtitle: 'Workstation readiness and quick recipes', onSelect: () => onNavigate('overview') },
-      { id: 'nav-packages', group: 'Navigation', title: 'Package & Library Studio', subtitle: 'Browse and configure dependencies', onSelect: () => onNavigate('packages') },
+      { id: 'nav-studio', group: 'Navigation', title: 'Create New Project', subtitle: 'Choose a frontend, API, or full-stack project and install locally', onSelect: () => onNavigate('project-studio') },
+      { id: 'nav-overview', group: 'Navigation', title: 'Overview', subtitle: 'Workstation status and recommended tech stacks', onSelect: () => onNavigate('overview') },
+      { id: 'nav-history', group: 'Navigation', title: 'Installed projects', subtitle: 'Run projects and open them in an editor', onSelect: () => onNavigate('history') },
       { id: 'nav-runtimes', group: 'Navigation', title: 'Runtime Manager', subtitle: 'Manage Node.js, Deno, and Bun channels', onSelect: () => onNavigate('runtimes') },
-      { id: 'nav-workflows', group: 'Navigation', title: 'Workflow Builder', subtitle: 'Edit dependency-ordered operation blocks', onSelect: () => onNavigate('workflows') },
-      { id: 'nav-operations', group: 'Navigation', title: 'Operations Centre', subtitle: 'Monitor live dry-run execution and logs', onSelect: () => onNavigate('operations') },
-      { id: 'nav-docs', group: 'Navigation', title: 'Documentation & Tutorial', subtitle: 'Guided walkthrough, prompt guide & codebase map', onSelect: () => onNavigate('docs') },
-      { id: 'nav-settings', group: 'Navigation', title: 'Workstation Settings', subtitle: 'Shell target, defaults, and AI provider routing', onSelect: () => onNavigate('settings') },
+      { id: 'nav-stacks', group: 'Navigation', title: 'Tech Stack', subtitle: 'Explore and apply recommended project stacks', onSelect: () => onNavigate('tech-stack') },
+      { id: 'nav-settings', group: 'Navigation', title: 'Settings', subtitle: 'Theme, environment diagnostics, defaults, and AI providers', onSelect: () => onNavigate('settings') },
     ];
 
     const quickItems: PaletteAction[] = [

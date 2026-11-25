@@ -68,6 +68,97 @@
   }
 }
 
+:root {
+  --theme-canvas: #101214;
+  --theme-surface: #171A1E;
+  --theme-panel: #1D2126;
+  --theme-elevated: #252A30;
+  --theme-border: #343B43;
+  --theme-text-primary: #F1F3F5;
+  --theme-text-secondary: #929BA5;
+  --theme-text-muted: #626D78;
+}
+
+:root[data-theme="semi-dark"] {
+  --theme-canvas: #181B20;
+  --theme-surface: #20242A;
+  --theme-panel: #292E35;
+  --theme-elevated: #343B43;
+  --theme-border: #46505B;
+  --theme-text-primary: #F3F5F7;
+  --theme-text-secondary: #AEB7C1;
+  --theme-text-muted: #77828E;
+}
+
+:root[data-theme="midnight"] {
+  --theme-canvas: #0C1220;
+  --theme-surface: #111A2B;
+  --theme-panel: #17243A;
+  --theme-elevated: #20314C;
+  --theme-border: #2E4260;
+  --theme-text-primary: #EEF3FC;
+  --theme-text-secondary: #A7B6CC;
+  --theme-text-muted: #7185A2;
+}
+
+:root[data-theme="forest"] {
+  --theme-canvas: #101B18;
+  --theme-surface: #172621;
+  --theme-panel: #20342D;
+  --theme-elevated: #2C463B;
+  --theme-border: #3A594A;
+  --theme-text-primary: #EFF7F2;
+  --theme-text-secondary: #A9C0B3;
+  --theme-text-muted: #779181;
+}
+
+:root[data-theme="ocean"] {
+  --theme-canvas: #0F1B24;
+  --theme-surface: #152734;
+  --theme-panel: #1D3545;
+  --theme-elevated: #28495D;
+  --theme-border: #35596D;
+  --theme-text-primary: #EFF7FB;
+  --theme-text-secondary: #A9C3D0;
+  --theme-text-muted: #7594A4;
+}
+
+:root[data-theme="light"] {
+  --theme-canvas: #F1F3F5;
+  --theme-surface: #FFFFFF;
+  --theme-panel: #F7F9FC;
+  --theme-elevated: #E8EDF2;
+  --theme-border: #D5DDE5;
+  --theme-text-primary: #1D2730;
+  --theme-text-secondary: #536170;
+  --theme-text-muted: #778491;
+}
+
+@layer utilities {
+  [class~="bg-[#101214]"] { background-color: var(--theme-canvas) !important; }
+  [class~="bg-[#14171B]"] { background-color: var(--theme-surface) !important; }
+  [class~="bg-[#14171A]"] { background-color: var(--theme-surface) !important; }
+  [class~="bg-[#171A1E]"] { background-color: var(--theme-surface) !important; }
+  [class~="bg-[#1D2126]"] { background-color: var(--theme-panel) !important; }
+  [class~="bg-[#252A30]"] { background-color: var(--theme-elevated) !important; }
+  [class~="border-[#343B43]"] { border-color: var(--theme-border) !important; }
+  [class~="border-[#2A3038]"] { border-color: var(--theme-border) !important; }
+  [class~="border-[#2C323A]"] { border-color: var(--theme-border) !important; }
+  [class~="text-[#F1F3F5]"] { color: var(--theme-text-primary) !important; }
+  [class~="text-[#929BA5]"] { color: var(--theme-text-secondary) !important; }
+  [class~="text-[#626D78]"] { color: var(--theme-text-muted) !important; }
+  [class~="text-[#C7A46A]"] { color: var(--theme-accent) !important; }
+  [class~="bg-[#C7A46A]"] { background-color: var(--theme-accent) !important; color: var(--theme-canvas) !important; }
+  [class~="border-[#C7A46A]"] { border-color: var(--theme-accent) !important; }
+  [class~="accent-[#C7A46A]"] { accent-color: var(--theme-accent) !important; }
+  [class~="hover:bg-[#D2B27C]"]:hover { background-color: color-mix(in srgb, var(--theme-accent) 86%, white) !important; }
+  [class~="hover:text-[#C7A46A]"]:hover { color: var(--theme-accent) !important; }
+  [class~="focus-visible:outline-[#C7A46A]"]:focus-visible { outline-color: var(--theme-accent) !important; }
+  [class~="hover:bg-[#1D2126]"]:hover { background-color: var(--theme-panel) !important; }
+  [class~="hover:bg-[#252A30]"]:hover { background-color: var(--theme-elevated) !important; }
+  [class~="hover:text-[#F1F3F5]"]:hover { color: var(--theme-text-primary) !important; }
+}
+
 /* Precision hairline instrumentation grid background for workflow canvas */
 .instrument-grid-bg {
   background-color: #121518;

@@ -40,6 +40,15 @@ import {
   resolveNpmCliPath,
   startProjectInstall,
 } from './server/localInstaller.ts';
+import { updateRuntime, validateRuntimeUpdateRequest } from './server/runtimeManager.ts';
+import {
+  listProjectEditors,
+  listProjectRuns,
+  openProjectInEditor,
+  startProjectRun,
+  stopProjectRun,
+  validateProjectRunInput,
+} from './server/projectActions.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -66,7 +75,7 @@ const PROVIDERS: ProviderConfig[] = [
   { id: 'ollama', name: 'Ollama (Local)', envVar: 'OLLAMA_BASE_URL', defaultModel: 'qwen2.5-coder:7b' },
 ];
 
-const VALID_FRAMEWORKS = new Set<FrameworkId>(['vite', 'nextjs', 'astro', 'vue', 'sveltekit']);
+const VALID_FRAMEWORKS = new Set<FrameworkId>(['vite', 'nextjs', 'astro', 'vue', 'sveltekit', 'angular']);
 const VALID_VITE_UIS = new Set<ViteUiFramework>(['react', 'vue', 'svelte', 'solid', 'vanilla']);
 const VALID_LANGUAGES = new Set<LanguageId>(['typescript', 'javascript']);
 const VALID_COMPILERS = new Set<BuildCompilerId>(['swc', 'standard']);
@@ -472,7 +481,11 @@ function sanitizeRecommendation(raw: unknown): AiStackRecommendation {
   const rawName = typeof cfg.projectName === 'string' ? cfg.projectName.toLowerCase().trim() : '';
   const projectName = rawName.replace(/[^a-z0-9._-]+/g, '-').replace(/^[^a-z0-9]+|-+$/g, '') || 'studio-app';
   const rawPort = Number(cfg.devPort);
-  const devPort = Number.isFinite(rawPort) && rawPort >= 3000 && rawPort <= 9000 ? Math.round(rawPort) : framework === 'nextjs' ? 3000 : 5173;
+  const defaultDevPort = framework === 'nextjs' ? 3000 : framework === 'angular' ? 4200 : 5173;
+  const devPort =
+    Number.isFinite(rawPort) && rawPort >= 3000 && rawPort <= 9000
+      ? Math.round(rawPort)
+      : defaultDevPort;
 
   return {
     summary: typeof obj.summary === 'string' && obj.summary.trim() ? obj.summary.trim() : 'Recommended configuration generated.',
@@ -611,7 +624,6 @@ function formatOsLabel(platform: string, release: string): string {
 }
 
 async function resolveBinaryPath(bin: string): Promise<string | null> {
-  if (bin === 'node') return process.execPath;
   if (process.platform === 'win32' && bin === 'npm') {
     try {
       return resolveNpmCliPath();
@@ -631,7 +643,6 @@ async function resolveBinaryPath(bin: string): Promise<string | null> {
 }
 
 async function probeCliVersion(bin: string, args: string[]): Promise<string | null> {
-  if (bin === 'node') return process.versions.node;
   if (process.platform === 'win32' && bin === 'npm') {
     try {
       const npmPackagePath = path.resolve(path.dirname(resolveNpmCliPath()), '..', 'package.json');
@@ -749,6 +760,27 @@ async function startServer() {
     }
   });
 
+  app.post('/api/local/runtime/update', async (req: Request, res: Response) => {
+    let request: ReturnType<typeof validateRuntimeUpdateRequest>;
+    try {
+      request = validateRuntimeUpdateRequest(req.body);
+    } catch (error) {
+      res.status(400).json({
+        error: error instanceof Error ? error.message : 'Invalid runtime update request.',
+      });
+      return;
+    }
+
+    try {
+      await updateRuntime(request.runtime, request.version);
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Unable to update runtime.',
+      });
+    }
+  });
+
   app.get('/api/projects/install/:id', (req: Request, res: Response) => {
     const job = getInstallJob(req.params.id);
     if (!job) {
@@ -756,6 +788,52 @@ async function startServer() {
       return;
     }
     res.json({ job });
+  });
+
+  app.get('/api/projects/runs', (_req: Request, res: Response) => {
+    res.json({ runs: listProjectRuns() });
+  });
+
+  app.post('/api/projects/run', async (req: Request, res: Response) => {
+    try {
+      const request = validateProjectRunInput(req.body);
+      const session = await startProjectRun(request);
+      res.status(202).json({ session });
+    } catch (error) {
+      res.status(400).json({
+        error: error instanceof Error ? error.message : 'Unable to run this project.',
+      });
+    }
+  });
+
+  app.post('/api/projects/runs/:id/stop', (req: Request, res: Response) => {
+    const session = stopProjectRun(req.params.id);
+    if (!session) {
+      res.status(404).json({ error: 'Project process was not found or has already stopped.' });
+      return;
+    }
+    res.json({ session });
+  });
+
+  app.get('/api/projects/editors', async (_req: Request, res: Response) => {
+    try {
+      res.json({ editors: await listProjectEditors() });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Unable to detect installed editors.',
+      });
+    }
+  });
+
+  app.post('/api/projects/open', async (req: Request, res: Response) => {
+    try {
+      await openProjectInEditor(req.body);
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(400).json({
+        error: error instanceof Error ? error.message : 'Unable to open project in editor.',
+      });
+    }
   });
 
   app.get('/api/system/probe', async (req: Request, res: Response) => {
