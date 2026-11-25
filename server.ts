@@ -40,7 +40,6 @@ import {
   resolveNpmCliPath,
   startProjectInstall,
 } from './server/localInstaller.ts';
-import { updateRuntime, validateRuntimeUpdateRequest } from './server/runtimeManager.ts';
 import {
   listProjectEditors,
   listProjectRuns,
@@ -831,26 +830,6 @@ async function startServer() {
     }
   });
 
-  app.post('/api/local/runtime/update', async (req: Request, res: Response) => {
-    let request: ReturnType<typeof validateRuntimeUpdateRequest>;
-    try {
-      request = validateRuntimeUpdateRequest(req.body);
-    } catch (error) {
-      res.status(400).json({
-        error: error instanceof Error ? error.message : 'Invalid runtime update request.',
-      });
-      return;
-    }
-
-    try {
-      await updateRuntime(request.runtime, request.version);
-      res.json({ ok: true });
-    } catch (error) {
-      res.status(500).json({
-        error: error instanceof Error ? error.message : 'Unable to update runtime.',
-      });
-    }
-  });
 
   app.get('/api/projects/install/:id', (req: Request, res: Response) => {
     const job = getInstallJob(req.params.id);

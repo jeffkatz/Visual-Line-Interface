@@ -1,7 +1,6 @@
 export type ScreenId =
   | 'overview'
   | 'project-studio'
-  | 'runtimes'
   | 'tech-stack'
   | 'history'
   | 'settings';

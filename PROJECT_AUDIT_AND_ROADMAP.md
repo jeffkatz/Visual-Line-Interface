@@ -26,7 +26,7 @@ During a full architectural and UX review of Visual Line Interface (originally l
    - *Fix Applied*:
      - Added `docsUrl` (and `releaseNotesUrl` where applicable) across all runtimes, package managers, and library catalog entries, plus a dedicated `TOOLCHAIN_DOCS` catalog covering TypeScript, JavaScript, SWC, esbuild, Tailwind CSS, Sass, CSS Modules, MDN CSS, Vitest, Playwright, ESLint, Prettier, Biome, React, Vue, Svelte, Solid, and Vanilla Web APIs.
      - Built dedicated inspector views for `compiler`, `testing`, and `devtools` in `InspectorPanel` with direct external documentation links and npm registry references.
-     - Added `Docs` / `npm` / `Release Notes` links directly inside `ProjectStudioScreen`, `PackageStudioScreen`, `RuntimeManagerScreen`, and `IntegrationRegistryScreen`.
+     - Added `Docs` / `npm` / `Release Notes` links directly inside `ProjectStudioScreen`, `PackageStudioScreen`, and `IntegrationRegistryScreen`.
 
 5. **Missing Developer Ergonomics & Manifest Visibility**
    - *Criticism*: Developers needed to see the exact resulting `package.json` and post-rename file tree before executing, copy individual CLI steps, quickly jump across screens/docs via keyboard, and recover gracefully from empty package search results.
@@ -50,7 +50,7 @@ During a full architectural and UX review of Visual Line Interface (originally l
 
 ### Supporting Workspaces, Live Probing & Persistence
 - **Overview**: Local workspace summary, setup guidance, recent installations, and one-click project creation.
-- **Runtime Manager & Diagnostics**: Live host probing (`/api/system/probe`) for OS, CPU arch, and `PATH` binaries; update Node through nvm/fnm/Volta, Deno through its self-updater, and Bun through stable/canary channels.
+- **Live Diagnostics**: Live host probing (`/api/system/probe`) for OS, CPU arch, and `PATH` binaries.
 - **Tech Stack & Settings**: Curated stack recommendations, theme controls, About information, and environment diagnostics in Settings.
 - **Database integrations**: Generated API driver dependencies, connection helpers, and `.env.example` templates for PostgreSQL, MongoDB, MySQL, SQLite, and Redis. Database services are not provisioned.
 - **Tests**: Automated unit tests (`npm test`) cover compatibility rules, installer safety, database scaffolding, project actions, runtime updates, config synthesis, and offline prompts.

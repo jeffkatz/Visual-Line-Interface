@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Activity,
-  Cpu,
   FolderKanban,
   History,
   Layers,
@@ -40,7 +39,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'overview', label: 'Overview', icon: LayoutGrid },
     { id: 'project-studio', label: 'Create New Project', icon: FolderKanban },
     { id: 'history', label: 'Installed projects', icon: History },
-    { id: 'runtimes', label: 'Runtime manager', icon: Cpu },
     { id: 'tech-stack', label: 'Tech Stack', icon: Layers },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];

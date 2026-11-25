@@ -151,13 +151,6 @@ export const OverviewScreen: React.FC<OverviewScreenProps> = ({
                 <h2 className="text-[13px] font-semibold uppercase tracking-wider text-[#F1F3F5]">
                   System Readiness
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => onNavigate('runtimes')}
-                  className="text-[11.5px] text-[#C7A46A] hover:underline cursor-pointer"
-                >
-                  Inspect →
-                </button>
               </div>
 
               <div className="flex flex-col gap-3.5">

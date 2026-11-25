@@ -25,7 +25,6 @@ import {
 import { AI_PROVIDERS } from './data/aiProviders';
 import { fetchAiStatus } from './services/aiClient';
 import { fetchSystemProbe } from './services/systemClient';
-import { updateRuntimeVersion } from './services/runtimeClient';
 import { Sidebar } from './components/layout/Sidebar';
 import { InspectorPanel } from './components/layout/InspectorPanel';
 import { CommandPalette } from './components/studio/CommandPalette';
@@ -34,9 +33,6 @@ import type { ProjectInstallJob } from './types/localInstaller';
 
 const OverviewScreen = lazy(() =>
   import('./components/screens/OverviewScreen').then((m) => ({ default: m.OverviewScreen }))
-);
-const RuntimeManagerScreen = lazy(() =>
-  import('./components/screens/RuntimeManagerScreen').then((m) => ({ default: m.RuntimeManagerScreen }))
 );
 const InstallationHistoryScreen = lazy(() =>
   import('./components/screens/SecondaryManagementScreens').then((m) => ({ default: m.InstallationHistoryScreen }))
@@ -349,20 +345,6 @@ export default function App() {
     [config.devPort, config.selectedPackageIds, handleUpdateConfig, runtimes]
   );
 
-  const handleUpdateRuntimeVersion = (id: RuntimeId, version: string) => {
-    setRuntimes((prev) =>
-      prev.map((rt) => (rt.id === id ? { ...rt, selectedVersion: version } : rt))
-    );
-    if (config.runtime === id) {
-      handleUpdateConfig({ runtimeVersion: version });
-    }
-  };
-
-  const handleUpgradeRuntime = async (id: RuntimeId, version: string) => {
-    await updateRuntimeVersion(id, version);
-    await refreshSystemProbe(true);
-  };
-
   const renderMainScreen = () => {
     switch (activeScreen) {
       case 'overview':
@@ -422,26 +404,6 @@ export default function App() {
                 ...previous,
               ]);
             }}
-          />
-        );
-      case 'runtimes':
-        return (
-          <RuntimeManagerScreen
-            runtimes={runtimes}
-            systemProbe={systemProbe}
-            activeRuntimeId={config.runtime}
-            onSelectActiveRuntime={(id) => {
-              const found = runtimes.find((r) => r.id === id);
-              handleUpdateConfig({
-                runtime: id,
-                runtimeVersion: found?.selectedVersion || found?.installedVersion || '',
-              });
-            }}
-            onUpdateRuntimeVersion={handleUpdateRuntimeVersion}
-            onUpgradeRuntime={handleUpgradeRuntime}
-            onProbeSystem={refreshSystemProbe}
-            packageManagers={packageManagers}
-            onInspect={(target) => setInspectorTarget(target)}
           />
         );
       case 'history':

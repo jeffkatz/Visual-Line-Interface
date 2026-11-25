@@ -21,7 +21,7 @@ Every visual control maps directly to deterministic CLI flags, manifests, and pr
 
 ## 1. Interface Anatomy
 
-Visual Line Interface exposes **Overview**, **Create New Project**, **Installed Projects**, **Runtime Manager**, **Tech Stack**, **History**, and **Settings** as peers in the primary navigation.
+Visual Line Interface exposes **Overview**, **Create New Project**, **Installed Projects**, **Tech Stack**, **History**, and **Settings** as peers in the primary navigation.
 
 ```text
 ┌──────────────────┬─────────────────────────────────────────┬──────────────────────┐
@@ -109,7 +109,6 @@ These rename operations are not applied by the real local installer yet; the off
 | **Overview** | Runtime readiness, recommended Tech Stacks, project setup entry points, and recent installations. |
 | **Create New Project** | Four-step wizard for frontend, API, and full-stack scaffolds; Angular and other frontend frameworks; optional PostgreSQL, MongoDB, MySQL, SQLite, or Redis driver integrations and environment templates. Database services are not provisioned. |
 | **Installed Projects** | Persistent list with import, run/stop, VS Code or detected IDE launch, file-manager open, and Git status/stage/commit/pull/push controls. Removing an entry does not delete project files. |
-| **Runtime Manager** | Probes live host OS, CPU arch, and `PATH` binaries (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`). Node updates require nvm, fnm, or Volta; Deno accepts pinned versions; Bun supports stable/canary updates. |
 | **Tech Stack** | Browse recommended combinations such as MERN, PERN, and MEAN. Applying a preset selects its technologies and carries those settings into project creation. |
 | **Settings** | Configure theme, workstation defaults, AI providers, credentials, models, and compatible endpoints; test provider connections. Credentials are stored encrypted by the local server. Diagnostics run `/api/system/probe`. |
 

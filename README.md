@@ -37,7 +37,6 @@ Instead of memorising framework CLI flags, hunting down compatibility notes acro
 | **Overview** | Local workspace status | Review runtime readiness, recommended Tech Stacks, recent installations, and project creation shortcuts. |
 | **Create New Project** | Primary guided installer | Create Vite, Next.js, Astro, Vue, SvelteKit, or Angular frontends; Express APIs; or full-stack projects in a workspace or sibling folders. API and full-stack projects can include PostgreSQL, MongoDB, MySQL, SQLite, or Redis drivers and environment templates (database services are not provisioned). |
 | **Installed projects** | Local project actions | Run frontend/API scripts on a free OS-allocated port, stop running processes, and open project folders in installed editors. |
-| **Runtime Manager** | Live host probe & toolchain management | Probe real host OS, CPU arch, `PATH` binaries (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`, `git`), and update supported runtime versions. |
 | **Tech Stack** | Recommended project configurations | Explore and apply combinations including MERN, PERN, and MEAN. |
 | **Settings & Providers** | Appearance, diagnostics, and optional AI routing | Customize theme mode, accent, fonts, and text size; run environment diagnostics; configure workstation defaults and optional AI providers (**OpenRouter**, **Google Gemini**, **OpenAI**, **Anthropic**, **Groq**, **Mistral**, **Ollama**). |
 | **Command Palette (`⌘K` / `Ctrl+K`)** | Keyboard-first navigation & references | Search workspaces, switch frameworks, copy generated setup commands, and open official framework and toolchain references. |
@@ -104,12 +103,10 @@ npm run build
 server.ts                           # Loopback Express + Vite server and local project API routes
 server/localInstaller.ts            # Native folder picker, validated frontend/API scaffolding and npm jobs
 server/projectActions.ts            # Free-port project runs, process stops, and editor launch actions
-server/runtimeManager.ts            # Validated local runtime version manager commands
 tests/
 ├── studio.test.ts                  # Project config, scaffold preview, and prompt tests
 ├── localInstaller.test.ts          # Installer input, destination safety, and command argument tests
 ├── projectActions.test.ts          # Free-port selection, run arguments, and request validation
-└── runtimeManager.test.ts           # Runtime update validation and command argument tests
 src/
 ├── App.tsx                         # Root state, host probe sync, localStorage persistence & screen routing
 ├── index.css                       # Tailwind CSS v4 setup, theme tokens, hardware surface utilities
@@ -123,7 +120,6 @@ src/
 │   ├── aiClient.ts                 # Typed frontend API client for /api/ai/*
 │   ├── localInstallerClient.ts     # Typed client for local folder selection and install jobs
 │   ├── systemClient.ts             # Typed frontend API client for /api/system/probe & /api/npm/*
-│   └── runtimeClient.ts            # Local runtime update action client
 └── components/
     ├── charts/                     # Recharts workstation visualizations (StudioCharts.tsx)
     ├── controls/                   # RotaryKnob, MechanicalToggle, SegmentedSelector, VersionSelector, Meters
@@ -155,7 +151,6 @@ Aesthetic & Layout:
 - Deep charcoal/graphite surfaces (#101214, #171A1E, #1D2126, #252A30), warm brass (#C7A46A),
   and technical green (#65B9A5) with Inter/Plus Jakarta Sans and JetBrains Mono typography.
 - Persistent three-part desktop layout: Left Navigation Sidebar, Dynamic Main Workspace
-  (Overview, Create New Project, Installed projects, Runtime Manager,
   Tech Stack, Settings with environment diagnostics),
   and a collapsible Right Contextual Inspector Panel.
 - Precision hardware controls: segmented selectors, mechanical toggle switches, version

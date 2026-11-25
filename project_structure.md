@@ -30,12 +30,10 @@
 ├── server/
 │   ├── localInstaller.ts                 # Native folder selection and validated frontend/API scaffolding
 │   ├── projectActions.ts                 # Free-port project runs, stop actions, and editor launch
-│   └── runtimeManager.ts                 # Validated local runtime version manager commands
 ├── tests/
 │   ├── studio.test.ts                    # Preview catalog, validation, config synthesis & prompt tests
 │   ├── localInstaller.test.ts            # Frontend/API scaffolding and destination safety tests
 │   ├── projectActions.test.ts            # Free-port selection, run arguments, and request validation
-│   └── runtimeManager.test.ts            # Runtime update validation and fixed command argument tests
 ├── README.md                             # Project overview, author credits, and origin prompt
 ├── DOCUMENTATION.md                      # End-user manual and installation walkthrough
 ├── PROJECT_AUDIT_AND_ROADMAP.md          # Implementation audit & future native daemon roadmap
@@ -55,7 +53,6 @@
     ├── services/
     │   ├── aiClient.ts                   # Typed browser fetch client calling /api/ai/* (zero keys in browser)
     │   ├── systemClient.ts               # Typed browser fetch client calling /api/system/probe & /api/npm/*
-    │   ├── runtimeClient.ts              # Local runtime update action client
     │   ├── localInstallerClient.ts       # Folder-picker, installation, and progress API client
     │   └── projectActionsClient.ts       # Local project run, stop, and editor actions
     └── components/
@@ -78,7 +75,6 @@
         └── screens/
             ├── ProjectSetupWizard.tsx    # Four-step frontend/API/full-stack project setup and install flow
             ├── OverviewScreen.tsx        # Local toolchain status, setup summary, and recent installations
-            ├── RuntimeManagerScreen.tsx  # Live runtime probe and version update controls
             └── SecondaryManagementScreens.tsx # Tech Stack, Installed projects, Settings & diagnostics
 ```
 
@@ -133,7 +129,6 @@ Settings and installation history migrate transparently from their legacy `visua
 - **Endpoints**:
   - `GET /api/health` — Returns `{ ok: true, timestamp }`.
   - `POST /api/local/choose-directory` — Opens a native folder picker for the local user.
-  - `POST /api/local/runtime/update` — Validates a runtime/version pair and invokes the matching local version manager/updater without a shell.
   - `POST /api/projects/install` — Validates and starts a real npm scaffold/install job; existing destination folders are not overwritten.
   - `GET /api/projects/install/:id` — Returns the install job status and captured output.
   - `GET /api/system/probe?devPort=...&previewPort=...` — Executes safe `execFile` version/path probes (`node`, `deno`, `bun`, `npm`, `pnpm`, `yarn`, `git`), detects host OS/arch/`PATH`, and tests live TCP port availability via `net.createServer()`.

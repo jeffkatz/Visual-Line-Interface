@@ -54,7 +54,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       { id: 'nav-studio', group: 'Navigation', title: 'Create New Project', subtitle: 'Choose a frontend, API, or full-stack project and install locally', onSelect: () => onNavigate('project-studio') },
       { id: 'nav-overview', group: 'Navigation', title: 'Overview', subtitle: 'Workstation status and recommended tech stacks', onSelect: () => onNavigate('overview') },
       { id: 'nav-history', group: 'Navigation', title: 'Installed projects', subtitle: 'Run projects and open them in an editor', onSelect: () => onNavigate('history') },
-      { id: 'nav-runtimes', group: 'Navigation', title: 'Runtime Manager', subtitle: 'Manage Node.js, Deno, and Bun channels', onSelect: () => onNavigate('runtimes') },
       { id: 'nav-stacks', group: 'Navigation', title: 'Tech Stack', subtitle: 'Explore and apply recommended project stacks', onSelect: () => onNavigate('tech-stack') },
       { id: 'nav-settings', group: 'Navigation', title: 'Settings', subtitle: 'Theme, environment diagnostics, defaults, and AI providers', onSelect: () => onNavigate('settings') },
     ];

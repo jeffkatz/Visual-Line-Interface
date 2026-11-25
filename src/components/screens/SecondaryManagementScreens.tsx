@@ -878,18 +878,85 @@ export const SettingsScreen: React.FC<{
 
           <section className="rounded-[5px] border border-[#343B43] bg-[#1D2126] p-5 hardware-bezel">
             <h2 className="text-[13.5px] font-semibold uppercase tracking-[0.06em] text-[#F1F3F5]">About</h2>
-            <p className="mt-3 text-[14px] font-semibold text-[#F1F3F5]">Jeffrey Katlego Monamodi</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-[#929BA5]">
-              Software Developer and UI/UX Designer with over 12 years of experience, now Agentic Prompter.
-            </p>
-            <a
-              href="https://www.beyondcuriouslabs.co.za"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-[#77A9DC] hover:text-[#F1F3F5]"
-            >
-              beyondcuriouslabs.co.za <ExternalLink className="h-3 w-3" />
-            </a>
+
+            <div className="mt-4">
+              <h3 className="text-[14px] font-semibold text-[#F1F3F5]">About the Developer</h3>
+              <p className="mt-2 text-[12px] leading-relaxed text-[#929BA5]">
+                <strong className="text-[#F1F3F5]">Jeffrey Katlego Monamodi</strong> is a Full-Stack Developer, UI/UX Designer,
+                Creative Technologist, and Agentic Prompt Engineer associated with <strong className="text-[#F1F3F5]">Beyond Curious Labs (BC-Labs)</strong>,
+                a creative technology and digital solutions studio based in South Africa.
+              </p>
+              <p className="mt-3 text-[12px] leading-relaxed text-[#929BA5]">
+                With over 12 years of experience across digital design, web development, multimedia, and creative problem-solving,
+                Jeffrey brings together design thinking, technical development, and emerging technologies to create practical
+                digital experiences and innovative software solutions.
+              </p>
+              <p className="mt-3 text-[12px] leading-relaxed text-[#929BA5]">
+                His work focuses on bridging the gap between ideas and functional technology. Combining user-centred design,
+                software architecture, interface engineering, and AI-driven development methodologies, he explores new ways to
+                make complex technologies more accessible, intuitive, and useful.
+              </p>
+              <p className="mt-3 text-[12px] leading-relaxed text-[#929BA5]">
+                As an Agentic Prompt Engineer, he develops structured instructions, workflows, and AI-assisted processes that enable
+                intelligent agents to interact with development environments, execute tasks, analyse problems, and assist with software
+                development. His approach emphasises purposeful automation, human oversight, and practical implementation rather than
+                automation for its own sake.
+              </p>
+              <p className="mt-3 text-[12px] leading-relaxed text-[#929BA5]">
+                Through Beyond Curious Labs, Jeffrey continues to explore the intersection of design, technology, software engineering,
+                and artificial intelligence, guided by a simple philosophy: <strong className="text-[#C7A46A]">Seek, Know, Create.</strong>
+              </p>
+              <p className="mt-3 text-[12px] leading-relaxed text-[#929BA5]">
+                Website:{' '}
+                <a
+                  href="https://www.beyondcuriouslabs.co.za"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[#77A9DC] hover:text-[#F1F3F5]"
+                >
+                  https://www.beyondcuriouslabs.co.za <ExternalLink className="h-3 w-3" />
+                </a>
+              </p>
+            </div>
+
+            <div className="mt-5 border-t border-[#343B43] pt-4">
+              <h3 className="text-[14px] font-semibold text-[#F1F3F5]">Software License</h3>
+              <p className="mt-2 text-[12px] leading-relaxed text-[#929BA5]">
+                This software is distributed under the <strong className="text-[#F1F3F5]">MIT License</strong>, an open-source license
+                that permits use, modification, distribution, and private or commercial application, subject to its terms.
+                Refer to the accompanying LICENSE file for the complete licensing conditions and copyright notice.
+              </p>
+            </div>
+
+            <div className="mt-5 border-t border-[#343B43] pt-4">
+              <h3 className="text-[14px] font-semibold text-[#F1F3F5]">Important Disclaimer &amp; Usage Notice</h3>
+              <p className="mt-2 text-[12px] font-semibold leading-relaxed text-[#C7A46A]">Use with caution.</p>
+              <p className="mt-2 text-[12px] leading-relaxed text-[#929BA5]">
+                This software is actively evolving and may contain incomplete functionality, experimental features, unexpected behaviour,
+                or unresolved bugs. Not all features are guaranteed to work as intended.
+              </p>
+              <p className="mt-3 text-[12px] leading-relaxed text-[#929BA5]">
+                Certain operations interact directly with your local development environment through the command line (CLI). These operations
+                may execute commands, install dependencies, modify project files, update configurations, change runtime environments, or
+                perform other system-level actions.
+              </p>
+              <p className="mt-3 text-[12px] leading-relaxed text-[#929BA5]">
+                Users should understand the implications of these operations before proceeding. Always review commands and proposed changes
+                where possible, maintain backups of important projects, and verify your environment before executing potentially destructive operations.
+              </p>
+              <p className="mt-3 text-[12px] leading-relaxed text-[#929BA5]">
+                <strong className="text-[#F1F3F5]">You are responsible for the commands you execute and the changes made to your system and projects.</strong>{' '}
+                The developer and BC-Labs accept no responsibility for data loss, damaged projects, system misconfiguration, or other consequences
+                arising from improper use, unsupported configurations, or unreviewed command execution, to the extent permitted by applicable law.
+              </p>
+              <p className="mt-3 text-[12px] leading-relaxed text-[#929BA5]">
+                This software is provided on an "AS IS" basis, without warranties or guarantees of uninterrupted operation, fitness for a
+                particular purpose, or error-free functionality, as outlined in the MIT License.
+              </p>
+              <p className="mt-3 text-[12px] font-semibold leading-relaxed text-[#F1F3F5]">
+                Build thoughtfully. Review before executing. Use responsibly.
+              </p>
+            </div>
           </section>
 
           {/* Core Workstation Calibration */}
