@@ -17,16 +17,22 @@ import type {
 import { resolveNpmCliPath } from './localInstaller.ts';
 
 const execFileAsync = promisify(execFile);
-const EDITOR_CATALOG: Array<{ id: EditorId; label: string; command: string }> = [
-  { id: 'vscode', label: 'Visual Studio Code', command: 'code' },
-  { id: 'visual-studio', label: 'Visual Studio', command: 'devenv' },
-  { id: 'antigravity', label: 'Antigravity', command: 'antigravity' },
-  { id: 'codex', label: 'Codex', command: 'codex' },
-  { id: 'opencode', label: 'OpenCode', command: 'opencode' },
-  { id: 'cursor', label: 'Cursor', command: 'cursor' },
-  { id: 'webstorm', label: 'WebStorm', command: 'webstorm' },
-  { id: 'idea', label: 'IntelliJ IDEA', command: 'idea' },
-  { id: 'zed', label: 'Zed', command: 'zed' },
+const EDITOR_CATALOG: Array<{
+  id: EditorId;
+  label: string;
+  commands: string[];
+  launchMode: 'folder' | 'terminal';
+}> = [
+  { id: 'vscode', label: 'Visual Studio Code', commands: ['code', 'Code.exe'], launchMode: 'folder' },
+  { id: 'visual-studio', label: 'Visual Studio', commands: ['devenv'], launchMode: 'folder' },
+  { id: 'antigravity', label: 'Antigravity', commands: ['antigravity'], launchMode: 'folder' },
+  { id: 'codex', label: 'Codex', commands: ['codex'], launchMode: 'terminal' },
+  { id: 'claude-code', label: 'Claude Code', commands: ['claude'], launchMode: 'terminal' },
+  { id: 'opencode', label: 'OpenCode', commands: ['opencode'], launchMode: 'terminal' },
+  { id: 'cursor', label: 'Cursor', commands: ['cursor', 'Cursor.exe'], launchMode: 'folder' },
+  { id: 'webstorm', label: 'WebStorm', commands: ['webstorm'], launchMode: 'folder' },
+  { id: 'idea', label: 'IntelliJ IDEA', commands: ['idea'], launchMode: 'folder' },
+  { id: 'zed', label: 'Zed', commands: ['zed'], launchMode: 'folder' },
 ];
 const FRAMEWORKS = new Set<FrameworkId>([
   'vite',
@@ -37,6 +43,84 @@ const FRAMEWORKS = new Set<FrameworkId>([
   'angular',
 ]);
 const runningProjects = new Map<string, { session: ProjectRunSession; child: ReturnType<typeof spawn> }>();
+
+async function findEditorExecutable(commands: string[]): Promise<string | null> {
+  for (const command of commands) {
+    try {
+      const lookup = process.platform === 'win32' ? 'where.exe' : 'which';
+      const { stdout } = await execFileAsync(lookup, [command], { windowsHide: true });
+      const executable = stdout
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .find((line) => line.length > 0);
+      if (executable) return executable;
+    } catch {
+      // Try the next command or a known application installation path.
+    }
+  }
+
+  if (process.platform === 'win32') {
+    const roots = [
+      process.env.LOCALAPPDATA,
+      process.env.PROGRAMFILES,
+      process.env['PROGRAMFILES(X86)'],
+    ].filter((root): root is string => Boolean(root));
+    const candidates = [
+      path.join(process.env.LOCALAPPDATA ?? '', 'Programs', 'Microsoft VS Code', 'Code.exe'),
+      path.join(process.env.LOCALAPPDATA ?? '', 'Programs', 'cursor', 'Cursor.exe'),
+      path.join(process.env.LOCALAPPDATA ?? '', 'Programs', 'Antigravity', 'Antigravity.exe'),
+    ];
+    for (const root of roots) {
+      candidates.push(path.join(root, 'Microsoft VS Code', 'Code.exe'));
+      candidates.push(path.join(root, 'Cursor', 'Cursor.exe'));
+      candidates.push(path.join(root, 'Antigravity', 'Antigravity.exe'));
+    }
+    for (const candidate of candidates) {
+      if (candidate && existsSync(candidate)) return candidate;
+    }
+  }
+
+  if (process.platform === 'darwin' && editor.launchMode === 'folder') {
+    const appName =
+      editor.id === 'vscode'
+        ? 'Visual Studio Code'
+        : editor.id === 'cursor'
+          ? 'Cursor'
+          : editor.id === 'antigravity'
+            ? 'Antigravity'
+            : editor.id === 'zed'
+              ? 'Zed'
+              : null;
+    if (appName) {
+      const child = spawn('open', ['-a', appName, directory], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      await once(child, 'spawn');
+      child.unref();
+      return;
+    }
+  }
+
+  if (process.platform === 'darwin') {
+    const appCandidates = [
+      '/Applications/Visual Studio Code.app/Contents/MacOS/Electron',
+      '/Applications/Cursor.app/Contents/MacOS/Cursor',
+      '/Applications/Antigravity.app/Contents/MacOS/Antigravity',
+      '/Applications/Zed.app/Contents/MacOS/Zed',
+    ];
+    for (const candidate of appCandidates) {
+      if (existsSync(candidate)) {
+        if (commands.includes('code')) return '/usr/bin/open';
+        if (commands.includes('cursor')) return '/usr/bin/open';
+        if (commands.includes('antigravity')) return '/usr/bin/open';
+        if (commands.includes('zed')) return '/usr/bin/open';
+      }
+    }
+  }
+
+  return null;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -223,13 +307,9 @@ export function stopProjectRun(id: string): ProjectRunSession | undefined {
 
 export async function listProjectEditors(): Promise<ProjectEditor[]> {
   return Promise.all(
-    EDITOR_CATALOG.map(async ({ id, label, command }) => {
-      try {
-        await execFileAsync(process.platform === 'win32' ? 'where.exe' : 'which', [command]);
-        return { id, label, available: true };
-      } catch {
-        return { id, label, available: false };
-      }
+    EDITOR_CATALOG.map(async ({ id, label, commands }) => {
+      const available = await findEditorExecutable(commands);
+      return { id, label, available: Boolean(available) };
     })
   );
 }
@@ -242,21 +322,13 @@ export async function openProjectInEditor(value: unknown): Promise<void> {
   const editor = EDITOR_CATALOG.find((item) => item.id === value.editor);
   if (!editor) throw new Error('Choose a supported editor.');
   const directory = await validateProjectDirectory(value.directory);
-  let executable: string;
-  try {
-    const { stdout } = await execFileAsync(
-      process.platform === 'win32' ? 'where.exe' : 'which',
-      [editor.command]
-    );
-    executable = stdout.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? '';
-  } catch {
-    throw new Error(`${editor.label} was not found on PATH.`);
-  }
+  const executable = await findEditorExecutable(editor.commands);
   if (!executable) throw new Error(`${editor.label} was not found on PATH.`);
 
   if (process.platform === 'win32') {
-    const script =
-      "$ErrorActionPreference = 'Stop'; $argument = '\"' + $env:VLI_PROJECT_PATH + '\"'; Start-Process -FilePath $env:VLI_EDITOR_PATH -ArgumentList $argument";
+    const script = editor.launchMode === 'terminal'
+      ? "$ErrorActionPreference = 'Stop'; Start-Process -FilePath 'powershell.exe' -WorkingDirectory $env:VLI_PROJECT_PATH -ArgumentList '-NoExit', '-Command', ('& \"' + $env:VLI_EDITOR_PATH + '\"')"
+      : "$ErrorActionPreference = 'Stop'; $argument = '\"' + $env:VLI_PROJECT_PATH + '\"'; Start-Process -FilePath $env:VLI_EDITOR_PATH -ArgumentList $argument";
     const encoded = Buffer.from(script, 'utf16le').toString('base64');
     const child = spawn(
       'powershell.exe',
@@ -277,9 +349,10 @@ export async function openProjectInEditor(value: unknown): Promise<void> {
     return;
   }
 
-  const child = spawn(executable, [directory], {
+  const child = spawn(executable, editor.launchMode === 'folder' ? [directory] : [], {
     detached: true,
     stdio: 'ignore',
+    cwd: editor.launchMode === 'terminal' ? directory : undefined,
   });
   await once(child, 'spawn');
   child.unref();

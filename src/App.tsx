@@ -270,6 +270,9 @@ export default function App() {
       const pkgSet = new Set(next.selectedPackageIds);
       if (next.styling === 'tailwind') pkgSet.add('tailwindcss');
       else pkgSet.delete('tailwindcss');
+      const stylingPackageIds = ['bootstrap', 'mui', 'ui-sdk', 'chakra', 'daisyui', 'ant-design', 'bulma', 'prime-react'];
+      for (const packageId of stylingPackageIds) pkgSet.delete(packageId);
+      if (stylingPackageIds.includes(next.styling)) pkgSet.add(next.styling);
 
       if (next.language === 'typescript') pkgSet.add('typescript');
       else pkgSet.delete('typescript');

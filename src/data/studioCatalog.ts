@@ -198,6 +198,142 @@ export const INITIAL_PACKAGE_MANAGERS: PackageManagerInfo[] = [
 
 export const STUDIO_PACKAGES: StudioPackage[] = [
   {
+    id: 'bootstrap',
+    name: 'Bootstrap',
+    npmName: 'bootstrap',
+    category: 'Styling & UI',
+    description: 'Responsive component and grid system with accessible JavaScript plugins.',
+    version: '5.3.8',
+    availableVersions: ['5.3.8', '5.3.3'],
+    isDevDependency: false,
+    hasFullIntegration: false,
+    integrationFiles: ['src/index.css'],
+    peerDependencies: [],
+    compatibleFrameworks: ['vite', 'nextjs', 'astro', 'vue', 'sveltekit', 'angular'],
+    status: 'available',
+    configSummary: 'Adds Bootstrap styles and component utilities.',
+    docsUrl: 'https://getbootstrap.com/docs/5.3/',
+  },
+  {
+    id: 'mui',
+    name: 'Material UI',
+    npmName: '@mui/material',
+    category: 'Styling & UI',
+    description: 'Google Material Design components for React applications.',
+    version: '7.3.7',
+    availableVersions: ['7.3.7', '7.0.0'],
+    isDevDependency: false,
+    hasFullIntegration: true,
+    integrationFiles: ['src/theme.ts'],
+    peerDependencies: ['@emotion/react', '@emotion/styled'],
+    compatibleFrameworks: ['vite', 'nextjs', 'react'],
+    status: 'available',
+    configSummary: 'Adds Material UI components and Emotion styling dependencies.',
+    docsUrl: 'https://mui.com/material-ui/',
+  },
+  {
+    id: 'ui-sdk',
+    name: 'Microsoft UI SDK',
+    npmName: '@ui-sdk/react',
+    category: 'Styling & UI',
+    description: 'Microsoft Fluent-style React components and UI primitives.',
+    version: '0.1.0-beta.17',
+    availableVersions: ['0.1.0-beta.17'],
+    isDevDependency: false,
+    hasFullIntegration: true,
+    integrationFiles: ['src/theme.ts'],
+    peerDependencies: ['@ui-sdk/core'],
+    compatibleFrameworks: ['vite', 'nextjs'],
+    status: 'available',
+    configSummary: 'Adds Microsoft UI SDK React and core packages.',
+    docsUrl: 'https://ui5.github.io/webcomponents-react/',
+  },
+  {
+    id: 'chakra',
+    name: 'Chakra UI',
+    npmName: '@chakra-ui/react',
+    category: 'Styling & UI',
+    description: 'Accessible composable React components with theme-aware style props.',
+    version: '3.30.0',
+    availableVersions: ['3.30.0', '3.22.0'],
+    isDevDependency: false,
+    hasFullIntegration: false,
+    integrationFiles: ['src/theme.ts'],
+    peerDependencies: ['@emotion/react'],
+    compatibleFrameworks: ['vite', 'nextjs'],
+    status: 'available',
+    configSummary: 'Adds Chakra UI and its React styling dependencies.',
+    docsUrl: 'https://chakra-ui.com/docs',
+  },
+  {
+    id: 'daisyui',
+    name: 'daisyUI',
+    npmName: 'daisyui',
+    category: 'Styling & UI',
+    description: 'Component classes built on Tailwind CSS.',
+    version: '5.1.8',
+    availableVersions: ['5.1.8', '4.12.24'],
+    isDevDependency: true,
+    hasFullIntegration: false,
+    integrationFiles: ['src/index.css'],
+    peerDependencies: ['tailwindcss'],
+    compatibleFrameworks: ['vite', 'nextjs', 'astro', 'vue', 'sveltekit'],
+    status: 'available',
+    configSummary: 'Adds daisyUI component classes alongside Tailwind CSS.',
+    docsUrl: 'https://daisyui.com/docs/',
+  },
+  {
+    id: 'ant-design',
+    name: 'Ant Design',
+    npmName: 'antd',
+    category: 'Styling & UI',
+    description: 'Enterprise-oriented React UI components and design system.',
+    version: '5.27.6',
+    availableVersions: ['5.27.6', '5.24.0'],
+    isDevDependency: false,
+    hasFullIntegration: false,
+    integrationFiles: ['src/theme.ts'],
+    peerDependencies: [],
+    compatibleFrameworks: ['vite', 'nextjs'],
+    status: 'available',
+    configSummary: 'Adds Ant Design components for React applications.',
+    docsUrl: 'https://ant.design/components/overview',
+  },
+  {
+    id: 'bulma',
+    name: 'Bulma',
+    npmName: 'bulma',
+    category: 'Styling & UI',
+    description: 'Modern Flexbox-based CSS framework with no JavaScript dependency.',
+    version: '1.0.4',
+    availableVersions: ['1.0.4', '0.9.4'],
+    isDevDependency: false,
+    hasFullIntegration: false,
+    integrationFiles: ['src/index.css'],
+    peerDependencies: [],
+    compatibleFrameworks: ['vite', 'nextjs', 'astro', 'vue', 'sveltekit', 'angular'],
+    status: 'available',
+    configSummary: 'Adds the Bulma CSS component system.',
+    docsUrl: 'https://bulma.io/documentation/',
+  },
+  {
+    id: 'prime-react',
+    name: 'PrimeReact',
+    npmName: 'primereact',
+    category: 'Styling & UI',
+    description: 'Rich React components with themes and icon support.',
+    version: '10.9.7',
+    availableVersions: ['10.9.7', '10.8.5'],
+    isDevDependency: false,
+    hasFullIntegration: false,
+    integrationFiles: ['src/theme.ts'],
+    peerDependencies: ['primeicons'],
+    compatibleFrameworks: ['vite', 'nextjs'],
+    status: 'available',
+    configSummary: 'Adds PrimeReact components and PrimeIcons.',
+    docsUrl: 'https://primereact.org/',
+  },
+  {
     id: 'tailwindcss',
     name: 'Tailwind CSS',
     npmName: 'tailwindcss',
@@ -439,6 +575,62 @@ export const TOOLCHAIN_DOCS: Record<string, ToolchainDocEntry> = {
     category: 'Styling',
     docsUrl: 'https://developer.mozilla.org/en-US/docs/Web/CSS',
     summary: 'Modern CSS nesting, custom properties, Grid, and Flexbox.',
+  },
+  bootstrap: {
+    id: 'bootstrap',
+    label: 'Bootstrap Documentation',
+    category: 'Styling',
+    docsUrl: 'https://getbootstrap.com/docs/5.3/',
+    summary: 'Responsive grid, components, utilities, and optional JavaScript plugins.',
+  },
+  mui: {
+    id: 'mui',
+    label: 'Material UI Documentation',
+    category: 'Styling',
+    docsUrl: 'https://mui.com/material-ui/',
+    summary: 'React components implementing Material Design with Emotion theming.',
+  },
+  'ui-sdk': {
+    id: 'ui-sdk',
+    label: 'Microsoft UI SDK Documentation',
+    category: 'Styling',
+    docsUrl: 'https://ui5.github.io/webcomponents-react/',
+    summary: 'Microsoft and Fluent-inspired React UI components.',
+  },
+  chakra: {
+    id: 'chakra',
+    label: 'Chakra UI Documentation',
+    category: 'Styling',
+    docsUrl: 'https://chakra-ui.com/docs',
+    summary: 'Accessible React components with theme-aware style props.',
+  },
+  daisyui: {
+    id: 'daisyui',
+    label: 'daisyUI Documentation',
+    category: 'Styling',
+    docsUrl: 'https://daisyui.com/docs/',
+    summary: 'Component class names powered by Tailwind CSS.',
+  },
+  'ant-design': {
+    id: 'ant-design',
+    label: 'Ant Design Documentation',
+    category: 'Styling',
+    docsUrl: 'https://ant.design/components/overview',
+    summary: 'Enterprise React UI components and design-system tokens.',
+  },
+  bulma: {
+    id: 'bulma',
+    label: 'Bulma Documentation',
+    category: 'Styling',
+    docsUrl: 'https://bulma.io/documentation/',
+    summary: 'Flexbox-based CSS components with no JavaScript framework dependency.',
+  },
+  'prime-react': {
+    id: 'prime-react',
+    label: 'PrimeReact Documentation',
+    category: 'Styling',
+    docsUrl: 'https://primereact.org/',
+    summary: 'Rich React components, themes, and icons.',
   },
   vitest: {
     id: 'vitest',
@@ -1327,6 +1519,28 @@ export function buildExecutionPlan(
       description: 'Install Dart Sass embedded compiler for SCSS stylesheets',
       estimatedSec: 3,
     });
+  } else {
+    const stylingPackages: Partial<Record<StylingId, { label: string; spec: string }>> = {
+      bootstrap: { label: 'Install Bootstrap', spec: 'bootstrap' },
+      mui: { label: 'Install Material UI', spec: '@mui/material @emotion/react @emotion/styled' },
+      'ui-sdk': { label: 'Install Microsoft UI SDK', spec: '@ui-sdk/core @ui-sdk/react' },
+      chakra: { label: 'Install Chakra UI', spec: '@chakra-ui/react @emotion/react' },
+      daisyui: { label: 'Install daisyUI', spec: 'daisyui' },
+      'ant-design': { label: 'Install Ant Design', spec: 'antd' },
+      bulma: { label: 'Install Bulma', spec: 'bulma' },
+      'prime-react': { label: 'Install PrimeReact', spec: 'primereact primeicons' },
+    };
+    const stylingPackage = stylingPackages[config.styling];
+    if (stylingPackage) {
+      steps.push({
+        id: 'step-styling',
+        phase: 'Dependencies',
+        label: stylingPackage.label,
+        command: `${addProdCmd} ${stylingPackage.spec}`,
+        description: `${stylingPackage.label.replace('Install ', '')} component system`,
+        estimatedSec: 4,
+      });
+    }
   }
 
   // Dev tools
@@ -1560,6 +1774,28 @@ export function buildGeneratedPackageJson(
     }
   } else if (config.styling === 'sass') {
     devDependencies['sass-embedded'] = '^1.85.1';
+  } else {
+    if (config.styling === 'bootstrap') dependencies.bootstrap = '^5.3.8';
+    if (config.styling === 'mui') {
+      dependencies['@mui/material'] = '^7.3.7';
+      dependencies['@emotion/react'] = '^11.14.0';
+      dependencies['@emotion/styled'] = '^11.14.1';
+    }
+    if (config.styling === 'ui-sdk') {
+      dependencies['@ui-sdk/core'] = '0.1.0-beta.17';
+      dependencies['@ui-sdk/react'] = '0.1.0-beta.17';
+    }
+    if (config.styling === 'chakra') {
+      dependencies['@chakra-ui/react'] = '^3.30.0';
+      dependencies['@emotion/react'] = '^11.14.0';
+    }
+    if (config.styling === 'daisyui') devDependencies.daisyui = '^5.1.8';
+    if (config.styling === 'ant-design') dependencies.antd = '^5.27.6';
+    if (config.styling === 'bulma') dependencies.bulma = '^1.0.4';
+    if (config.styling === 'prime-react') {
+      dependencies.primereact = '^10.9.7';
+      dependencies.primeicons = '^7.0.0';
+    }
   }
 
   if (config.devTools.includes('eslint')) {

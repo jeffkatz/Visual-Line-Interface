@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   buildProjectRunArgs,
   findAvailableProjectPort,
+  supportedProjectEditors,
   validateProjectRunInput,
 } from '../server/projectActions';
 
@@ -52,4 +53,13 @@ test('the OS returns an available ephemeral port for a project run', async () =>
   await new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
+});
+
+test('project editor options include VS Code, Antigravity, Cursor, Codex, and Claude Code', () => {
+  const ids = new Set(supportedProjectEditors.map((editor) => editor.id));
+  assert.ok(ids.has('vscode'));
+  assert.ok(ids.has('antigravity'));
+  assert.ok(ids.has('cursor'));
+  assert.ok(ids.has('codex'));
+  assert.ok(ids.has('claude-code'));
 });

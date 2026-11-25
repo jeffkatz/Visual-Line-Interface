@@ -13,6 +13,7 @@ export type EditorId =
   | 'visual-studio'
   | 'antigravity'
   | 'codex'
+  | 'claude-code'
   | 'opencode'
   | 'cursor'
   | 'webstorm'

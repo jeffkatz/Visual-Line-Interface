@@ -14,7 +14,19 @@ export type ViteUiFramework = 'react' | 'vue' | 'svelte' | 'solid' | 'vanilla';
 export type LanguageId = 'typescript' | 'javascript';
 export type BuildCompilerId = 'swc' | 'standard';
 export type DevToolId = 'eslint' | 'prettier' | 'biome';
-export type StylingId = 'tailwind' | 'sass' | 'css-modules' | 'plain-css';
+export type StylingId =
+  | 'tailwind'
+  | 'bootstrap'
+  | 'mui'
+  | 'ui-sdk'
+  | 'chakra'
+  | 'daisyui'
+  | 'ant-design'
+  | 'bulma'
+  | 'prime-react'
+  | 'sass'
+  | 'css-modules'
+  | 'plain-css';
 export type TestingId = 'vitest' | 'playwright' | 'none';
 export type RuntimeId = 'node' | 'deno' | 'bun';
 export type PackageManagerId = 'npm' | 'pnpm' | 'yarn' | 'bun';

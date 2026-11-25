@@ -94,7 +94,20 @@ const VALID_FRAMEWORKS = new Set<FrameworkId>(['vite', 'nextjs', 'astro', 'vue',
 const VALID_VITE_UIS = new Set<ViteUiFramework>(['react', 'vue', 'svelte', 'solid', 'vanilla']);
 const VALID_LANGUAGES = new Set<LanguageId>(['typescript', 'javascript']);
 const VALID_COMPILERS = new Set<BuildCompilerId>(['swc', 'standard']);
-const VALID_STYLING = new Set<StylingId>(['tailwind', 'sass', 'css-modules', 'plain-css']);
+const VALID_STYLING = new Set<StylingId>([
+  'tailwind',
+  'bootstrap',
+  'mui',
+  'ui-sdk',
+  'chakra',
+  'daisyui',
+  'ant-design',
+  'bulma',
+  'prime-react',
+  'sass',
+  'css-modules',
+  'plain-css',
+]);
 const VALID_TESTING = new Set<TestingId>(['vitest', 'playwright', 'none']);
 const VALID_DEVTOOLS = new Set<DevToolId>(['eslint', 'prettier', 'biome']);
 const VALID_PMS = new Set<PackageManagerId>(['pnpm', 'npm', 'yarn', 'bun']);
@@ -1402,7 +1415,7 @@ Respond strictly with valid JSON matching this schema:
     "viteUiFramework": "react" | "vue" | "svelte" | "solid" | "vanilla",
     "language": "typescript" | "javascript",
     "compiler": "swc" | "standard",
-    "styling": "tailwind" | "sass" | "css-modules" | "plain-css",
+    "styling": "tailwind" | "bootstrap" | "mui" | "ui-sdk" | "chakra" | "daisyui" | "ant-design" | "bulma" | "prime-react" | "sass" | "css-modules" | "plain-css",
     "testing": "vitest" | "playwright" | "none",
     "devTools": ["eslint" | "prettier" | "biome"],
     "packageManager": "pnpm" | "npm" | "yarn" | "bun",

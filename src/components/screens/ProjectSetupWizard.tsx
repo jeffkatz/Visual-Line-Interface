@@ -18,6 +18,7 @@ import type {
   ProjectConfig,
   ProjectType,
   StudioPackage,
+  StylingId,
 } from '../../types/studio';
 import type { ProjectInstallJob } from '../../types/localInstaller';
 import { FRAMEWORKS } from '../../data/studioCatalog';
@@ -378,6 +379,35 @@ export const ProjectSetupWizard: React.FC<ProjectSetupWizardProps> = ({
                     )}
                   </div>
                 </fieldset>
+              )}
+              {config.projectType !== 'api' && (
+                <div className="rounded border border-[#2D333B] bg-[#171A1E] p-4">
+                  <label htmlFor="ui-styling" className="mb-2 block text-[12px] font-medium text-[#F1F3F5]">
+                    UI library / styling
+                  </label>
+                  <select
+                    id="ui-styling"
+                    value={config.styling}
+                    onChange={(event) => onUpdateConfig({ styling: event.target.value as StylingId })}
+                    className="w-full rounded border border-[#343B43] bg-[#101214] px-3 py-2 text-[13px] text-[#F1F3F5]"
+                  >
+                    <option value="tailwind">Tailwind CSS</option>
+                    <option value="mui">Material UI (MUI)</option>
+                    <option value="bootstrap">Bootstrap</option>
+                    <option value="ui-sdk">Microsoft Fluent UI / UI SDK</option>
+                    <option value="chakra">Chakra UI</option>
+                    <option value="daisyui">daisyUI</option>
+                    <option value="ant-design">Ant Design</option>
+                    <option value="bulma">Bulma</option>
+                    <option value="prime-react">PrimeReact</option>
+                    <option value="sass">Sass / SCSS</option>
+                    <option value="css-modules">CSS Modules</option>
+                    <option value="plain-css">Plain CSS</option>
+                  </select>
+                  <p className="mt-2 text-[11px] leading-relaxed text-[#929BA5]">
+                    Adds the selected styling system to the generated project and execution plan.
+                  </p>
+                </div>
               )}
               {config.projectType === 'api' && (
                 <p className="text-[11px] text-[#929BA5]">API starters use TypeScript.</p>
